@@ -12,7 +12,7 @@
     ],
     "require": {
         "php": ">=5.4",
-        "doctrine/dbal": "~2.2",
+        "doctrine/dbal": "~2.1",
         "zendframework/zend-serializer" : "~2.3",
         "beberlei/assert": "~2.0"
     },

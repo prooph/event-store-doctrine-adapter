@@ -6,6 +6,7 @@ php:
   - 5.6
 
 env:
+  - DOCTRINE_VERSION=2.1.*@dev
   - DOCTRINE_VERSION=2.2.*@dev
   - DOCTRINE_VERSION=2.3.*@dev
   - DOCTRINE_VERSION=2.4.*@dev
