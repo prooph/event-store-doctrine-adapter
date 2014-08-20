@@ -58,12 +58,12 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
             throw new ConfigurationException('DB connection configuration is missing');
         }
 
-        if (isset($options['source_table_map'])) {
-            $this->aggregateTypeTableMap = $options['source_table_map'];
+        if (isset($configuration['source_table_map'])) {
+            $this->aggregateTypeTableMap = $configuration['source_table_map'];
         }
 
-        if (isset($options['snapshot_table'])) {
-            $this->snapshotTable = $options['snapshot_table'];
+        if (isset($configuration['snapshot_table'])) {
+            $this->snapshotTable = $configuration['snapshot_table'];
         }
 
         $connection = $configuration['connection'];
@@ -74,8 +74,8 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
 
         $this->connection = $connection;
 
-        if (isset($options['serializer_adapter'])) {
-            $this->serializerAdapter = $options['serializer_adapter'];
+        if (isset($configuration['serializer_adapter'])) {
+            $this->serializerAdapter = $configuration['serializer_adapter'];
         }
     }
 
