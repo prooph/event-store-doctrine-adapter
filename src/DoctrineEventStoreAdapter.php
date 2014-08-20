@@ -42,6 +42,13 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
     protected $snapshotTable = 'snapshot';
 
     /**
+     * Serialize adapter used to serialize event payload
+     *
+     * @var string|\Zend\Serializer\Adapter\AdapterInterface
+     */
+    protected $serializerAdapter;
+
+    /**
      * @param  array                                                       $configuration
      * @throws \Prooph\EventStore\Adapter\Exception\ConfigurationException
      */
@@ -66,6 +73,10 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
         }
 
         $this->connection = $connection;
+
+        if (isset($options['serializer_adapter'])) {
+            $this->serializerAdapter = $options['serializer_adapter'];
+        }
     }
 
     /**
@@ -113,7 +124,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
         $events = array();
 
         foreach ($stmt->fetchAll() as $eventData) {
-            $payload = Serializer::unserialize($eventData['payload']);
+            $payload = Serializer::unserialize($eventData['payload'], $this->serializerAdapter);
 
             $eventId = new EventId($eventData['eventId']);
 
@@ -244,7 +255,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
             'streamId' => $streamId->toString(),
             'version' => $e->version(),
             'eventName' => $e->eventName()->toString(),
-            'payload' => Serializer::serialize($e->payload()),
+            'payload' => Serializer::serialize($e->payload(), $this->serializerAdapter),
             'occurredOn' => $e->occurredOn()->format(\DateTime::ISO8601)
         );
 
