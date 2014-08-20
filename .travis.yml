@@ -1,0 +1,28 @@
+language: php
+
+php: 
+  - 5.3.3
+  - 5.3
+  - 5.4
+  - 5.5
+  - 5.6
+
+env:
+  - DOCTRINE_VERSION=2.2.*@dev
+  - DOCTRINE_VERSION=2.3.*@dev
+  - DOCTRINE_VERSION=2.4.*@dev
+  - DOCTRINE_VERSION=2.5.*@dev
+
+before_script:
+  - composer self-update
+  - composer install --dev --prefer-source
+  - composer require doctrine/dbal:${DOCTRINE_VERSION}
+
+script: phpunit --coverage-text --coverage-clover ./build/logs/clover.doctrine.coveralls.yml-$DOCTRINE_VERSION.xml
+
+after_script:
+  - php vendor/bin/coveralls -v
+
+notifications:
+  email: false
+  hipchat: b00ece55a12a4a46874554f64029c9@Allgemein

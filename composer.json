@@ -1,0 +1,34 @@
+{
+    "name": "dotsunited/prooph-event-store-doctrine-adapter",
+    "description": "Doctrine Adapter for ProophEventStore",
+    "homepage": "https://github.com/dotsunited/prooph-event-store-doctrine-adapter",
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "Jan Sorgalla",
+            "email": "jan.sorgalla@dotsunited.de",
+            "homepage": "http://dotsunited.de"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.3",
+        "doctrine/dbal": "~2.2",
+        "zendframework/zend-serializer" : "~2.3",
+        "beberlei/assert": "~2.0"
+    },
+    "require-dev": {
+        "prooph/event-store": "~0.4",
+        "prooph/event-sourcing" : "dev-master",
+        "satooshi/php-coveralls": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "DotsUnited\\Prooph\\EventStore\\Adapter\\Doctrine\\": "src/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "0.1-dev"
+        }
+    }
+}
