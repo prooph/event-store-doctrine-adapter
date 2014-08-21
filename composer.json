@@ -26,6 +26,11 @@
             "DotsUnited\\Prooph\\EventStore\\Adapter\\Doctrine\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-0": {
+            "Prooph\\EventStoreTest\\": "vendor/prooph/event-store/tests/"
+        }
+    },
     "extra": {
         "branch-alias": {
             "dev-master": "0.1-dev"
