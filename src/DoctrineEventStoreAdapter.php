@@ -256,7 +256,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
             'version' => $e->version(),
             'eventName' => $e->eventName()->toString(),
             'payload' => Serializer::serialize($e->payload(), $this->serializerAdapter),
-            'occurredOn' => $e->occurredOn()->format(\DateTime::ISO8601)
+            'occurredOn' => $e->occurredOn()->format('Y-m-d\TH:i:s.uO')
         );
 
         $this->connection->insert($this->getTable($aggregateType), $eventData);
