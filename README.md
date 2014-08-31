@@ -1,7 +1,7 @@
 Doctrine Adapter for ProophEventStore
 =====================================
 
-[![Build Status](https://secure.travis-ci.org/dotsunited/prooph-event-store-doctrine-adapter.svg?branch=master)](http://travis-ci.org/dotsunited/prooph-event-store-doctrine-adapter)
+[![Build Status](https://travis-ci.org/prooph/event-store-doctrine-adapter.svg?branch=master)](https://travis-ci.org/prooph/event-store-doctrine-adapter)
 
 Use [ProophEventStore](https://github.com/prooph/event-store) with [Doctrine DBAL](https://github.com/doctrine/dbal).
 
