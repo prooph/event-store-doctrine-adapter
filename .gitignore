@@ -1,5 +1,7 @@
-build/
+/.settings
+/.project
+/.buildpath
+/vendor
+.idea
+nbproject
 composer.lock
-composer.phar
-phpunit.xml
-vendor/

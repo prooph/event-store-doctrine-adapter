@@ -1,6 +1,6 @@
 <?php
 
-namespace DotsUnited\Prooph\EventStore\Adapter\Doctrine;
+namespace Prooph\EventStore\Adapter\Doctrine;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;

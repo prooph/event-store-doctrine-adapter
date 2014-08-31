@@ -1,7 +1,7 @@
 {
-    "name": "dotsunited/prooph-event-store-doctrine-adapter",
+    "name": "prooph/event-store-doctrine-adapter",
     "description": "Doctrine Adapter for ProophEventStore",
-    "homepage": "https://github.com/dotsunited/prooph-event-store-doctrine-adapter",
+    "homepage": "https://github.com/prooph/event-store-doctrine-adapter",
     "license": "BSD-3-Clause",
     "authors": [
         {
@@ -23,7 +23,7 @@
     },
     "autoload": {
         "psr-4": {
-            "DotsUnited\\Prooph\\EventStore\\Adapter\\Doctrine\\": "src/"
+            "Prooph\\EventStore\\Adapter\\Doctrine\\": "src/"
         }
     },
     "autoload-dev": {
