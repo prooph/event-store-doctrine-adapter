@@ -3,7 +3,7 @@
 namespace DotsUnitedProoph\EventStoreTest\Adapter\Doctrine;
 
 use Doctrine\DBAL\DriverManager;
-use DotsUnited\Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
+use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
 use Prooph\EventSourcing\Mapping\AggregateChangedEventHydrator;
 use Prooph\EventStore\Stream\AggregateType;
 use Prooph\EventStore\Stream\Stream;
