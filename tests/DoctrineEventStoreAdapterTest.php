@@ -65,7 +65,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
             EventId::generate(),
             new EventName('UsernameChanged'),
             array('name' => 'John Doe'),
-            1,
+            2,
             new \DateTime(),
             array('tag' => 'person')
         );
@@ -76,6 +76,41 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
         $this->assertEquals(2, count($stream->streamEvents()));
+    }
+
+    /**
+     * @test
+     */
+    public function it_loads_events_from_min_version_on()
+    {
+        $this->adapter->create($this->getTestStream());
+
+        $streamEvent1 = new StreamEvent(
+            EventId::generate(),
+            new EventName('UsernameChanged'),
+            array('name' => 'John Doe'),
+            2,
+            new \DateTime(),
+            array('tag' => 'person')
+        );
+
+        $streamEvent2 = new StreamEvent(
+            EventId::generate(),
+            new EventName('EmailChanged'),
+            array('email' => 'test@prooph.de'),
+            3,
+            new \DateTime(),
+            array('tag' => 'person')
+        );
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), array($streamEvent1, $streamEvent2));
+
+        $stream = $this->adapter->load(new StreamName('Prooph\Model\User'), 2);
+
+        $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
+        $this->assertEquals(2, count($stream->streamEvents()));
+        $this->assertEquals('UsernameChanged', $stream->streamEvents()[0]->eventName());
+        $this->assertEquals('EmailChanged', $stream->streamEvents()[1]->eventName());
     }
 
     /**
