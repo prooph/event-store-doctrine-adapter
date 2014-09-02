@@ -4,13 +4,12 @@ namespace DotsUnitedProoph\EventStoreTest\Adapter\Doctrine;
 
 use Doctrine\DBAL\DriverManager;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
-use Prooph\EventSourcing\Mapping\AggregateChangedEventHydrator;
-use Prooph\EventStore\Stream\AggregateType;
+use Prooph\EventStore\Stream\EventId;
+use Prooph\EventStore\Stream\EventName;
 use Prooph\EventStore\Stream\Stream;
-use Prooph\EventStore\Stream\StreamId;
-use Prooph\EventStoreTest\Mock\User;
+use Prooph\EventStore\Stream\StreamEvent;
+use Prooph\EventStore\Stream\StreamName;
 use Prooph\EventStoreTest\TestCase;
-use ValueObjects\DateTime\DateTime;
 
 class DoctrineEventStoreAdapterTest extends TestCase
 {
@@ -21,11 +20,6 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
     protected function setUp()
     {
-        $this->adapter = $this->getEventStoreAdapter();
-    }
-
-    protected function initEventStoreAdapter()
-    {
         $options = array(
             'connection' => array(
                 'driver' => 'pdo_sqlite',
@@ -33,71 +27,55 @@ class DoctrineEventStoreAdapterTest extends TestCase
             )
         );
 
-        $this->eventStoreAdapter = new DoctrineEventStoreAdapter($options);
+        $this->adapter = new DoctrineEventStoreAdapter($options);
     }
 
     /**
      * @test
      */
-    public function it_creates_schema_stores_event_stream_and_fetches_the_stream_from_db()
+    public function it_creates_a_stream()
     {
-        $this->adapter->createSchema(array('User'));
+        $testStream = $this->getTestStream();
 
-        $user = new User("Alex");
+        $this->adapter->beginTransaction();
 
-        $pendingEvents = $user->accessPendingEvents();
+        $this->adapter->create($testStream);
 
-        $eventHydrator = new AggregateChangedEventHydrator();
+        $this->adapter->commit();
 
-        $streamEvents = $eventHydrator->toStreamEvents($pendingEvents);
+        $streamEvents = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), array('tag' => 'person'));
 
-        $stream = new Stream(new AggregateType(get_class($user)), new StreamId($user->id()), $streamEvents);
+        $this->assertEquals(1, count($streamEvents));
 
-        $this->adapter->addToExistingStream($stream);
-
-        $historyEventStream = $this->adapter->loadStream(new AggregateType(get_class($user)), new StreamId($user->id()));
-
-        $historyEvents = $historyEventStream->streamEvents();
-
-        $this->assertEquals(1, count($historyEvents));
-
-        $userCreatedEvent = $historyEvents[0];
-
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $userCreatedEvent->eventName()->toString());
-
-        $this->assertEquals($pendingEvents[0]->uuid(), $userCreatedEvent->eventId()->toString());
-        $this->assertEquals(1, $userCreatedEvent->version());
-
-        $payload = $userCreatedEvent->payload();
-
-        $this->assertEquals($user->name(), $payload['name']);
-        $this->assertTrue($pendingEvents[0]->occurredOn()->sameValueAs(DateTime::fromNativeDateTime($userCreatedEvent->occurredOn())));
+        $this->assertEquals($testStream->streamEvents()[0]->eventId()->toString(), $streamEvents[0]->eventId()->toString());
+        $this->assertEquals($testStream->streamEvents()[0]->occurredOn()->format('Y-m-d\TH:i:s.uO'), $streamEvents[0]->occurredOn()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('UserCreated', $streamEvents[0]->eventName()->toString());
+        $this->assertEquals('contact@prooph.de', $streamEvents[0]->payload()['email']);
+        $this->assertEquals(1, $streamEvents[0]->version());
     }
 
     /**
      * @test
      */
-    public function it_removes_a_stream()
+    public function it_appends_events_to_a_stream()
     {
-        $this->adapter->createSchema(array('User'));
+        $this->adapter->create($this->getTestStream());
 
-        $user = new User("Alex");
+        $streamEvent = new StreamEvent(
+            EventId::generate(),
+            new EventName('UsernameChanged'),
+            array('name' => 'John Doe'),
+            1,
+            new \DateTime(),
+            array('tag' => 'person')
+        );
 
-        $pendingEvents = $user->accessPendingEvents();
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), array($streamEvent));
 
-        $eventHydrator = new AggregateChangedEventHydrator();
+        $stream = $this->adapter->load(new StreamName('Prooph\Model\User'));
 
-        $streamEvents = $eventHydrator->toStreamEvents($pendingEvents);
-
-        $stream = new Stream(new AggregateType(get_class($user)), new StreamId($user->id()), $streamEvents);
-
-        $this->adapter->addToExistingStream($stream);
-
-        $this->adapter->removeStream(new AggregateType(get_class($user)), new StreamId($user->id()));
-
-        $historyStream = $this->adapter->loadStream(new AggregateType(get_class($user)), new StreamId($user->id()));
-
-        $this->assertEquals(0, count($historyStream->streamEvents()));
+        $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
+        $this->assertEquals(2, count($stream->streamEvents()));
     }
 
     /**
@@ -113,5 +91,22 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $esAdapter = new DoctrineEventStoreAdapter(array('connection' => $connection));
 
         $this->assertSame($connection, \PHPUnit_Framework_Assert::readAttribute($esAdapter, 'connection'));
+    }
+
+    /**
+     * @return Stream
+     */
+    private function getTestStream()
+    {
+        $streamEvent = new StreamEvent(
+            EventId::generate(),
+            new EventName('UserCreated'),
+            array('name' => 'Max Mustermann', 'email' => 'contact@prooph.de'),
+            1,
+            new \DateTime(),
+            array('tag' => 'person')
+        );
+
+        return new Stream(new StreamName('Prooph\Model\User'), array($streamEvent));
     }
 }

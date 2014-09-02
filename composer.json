@@ -17,8 +17,8 @@
         "beberlei/assert": "~2.0"
     },
     "require-dev": {
-        "prooph/event-store": "~0.4",
-        "prooph/event-sourcing" : "dev-master",
+        "prooph/event-store": "dev-0.5-dev",
+        "phpunit/phpunit": "3.7.*",
         "satooshi/php-coveralls": "dev-master"
     },
     "autoload": {

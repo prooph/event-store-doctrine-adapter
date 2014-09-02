@@ -7,14 +7,13 @@ use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Schema\Schema;
 use Prooph\EventStore\Adapter\AdapterInterface;
 use Prooph\EventStore\Adapter\Exception\ConfigurationException;
-use Prooph\EventStore\Adapter\Exception\InvalidArgumentException;
 use Prooph\EventStore\Adapter\Feature\TransactionFeatureInterface;
-use Prooph\EventStore\Stream\AggregateType;
+use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Stream\EventId;
 use Prooph\EventStore\Stream\EventName;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamEvent;
-use Prooph\EventStore\Stream\StreamId;
+use Prooph\EventStore\Stream\StreamName;
 use Zend\Serializer\Serializer;
 
 /**
@@ -32,14 +31,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
      *
      * @var array
      */
-    protected $aggregateTypeTableMap = array();
-
-    /**
-     * Name of the table that contains snapshot metadata
-     *
-     * @var string
-     */
-    protected $snapshotTable = 'snapshot';
+    protected $streamTableMap = array();
 
     /**
      * Serialize adapter used to serialize event payload
@@ -58,12 +50,8 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
             throw new ConfigurationException('DB connection configuration is missing');
         }
 
-        if (isset($configuration['source_table_map'])) {
-            $this->aggregateTypeTableMap = $configuration['source_table_map'];
-        }
-
-        if (isset($configuration['snapshot_table'])) {
-            $this->snapshotTable = $configuration['snapshot_table'];
+        if (isset($configuration['stream_table_map'])) {
+            $this->streamTableMap = $configuration['stream_table_map'];
         }
 
         $connection = $configuration['connection'];
@@ -80,42 +68,67 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
     }
 
     /**
-     * @param  AggregateType                                                 $aggregateType
-     * @param  StreamId                                                      $streamId
-     * @param  null|int                                                      $version
-     * @return Stream
-     * @throws \Prooph\EventStore\Adapter\Exception\InvalidArgumentException
+     * @param Stream $aStream
+     * @return void
      */
-    public function loadStream(AggregateType $aggregateType, StreamId $streamId, $version = null)
+    public function create(Stream $aStream)
     {
-        try {
-            \Assert\that($version)->nullOr()->integer();
-        } catch (\InvalidArgumentException $ex) {
-            throw new InvalidArgumentException(
-                sprintf(
-                    'Loading the stream for AggregateType %s with id %s failed cause invalid parameters were passed: %s',
-                    $aggregateType->toString(),
-                    $streamId->toString(),
-                    $ex->getMessage()
-                )
-            );
-        }
+        $this->createSchemaFor($aStream);
 
+        $this->appendTo($aStream->streamName(), $aStream->streamEvents());
+    }
+
+    /**
+     * @param StreamName $aStreamName
+     * @param array $streamEvents
+     * @throws \Prooph\EventStore\Exception\StreamNotFoundException If stream does not exist
+     * @return void
+     */
+    public function appendTo(StreamName $aStreamName, array $streamEvents)
+    {
+        foreach ($streamEvents as $event) {
+            $this->insertEvent($aStreamName, $event);
+        }
+    }
+
+    /**
+     * @param StreamName $aStreamName
+     * @param null|int $minVersion
+     * @return Stream|null
+     */
+    public function load(StreamName $aStreamName, $minVersion = null)
+    {
+        $events = $this->loadEventsByMetadataFrom($aStreamName, array(), $minVersion);
+
+        return new Stream($aStreamName, $events);
+    }
+
+    /**
+     * @param StreamName $aStreamName
+     * @param array $metadata
+     * @param null|int $minVersion
+     * @return StreamEvent[]
+     */
+    public function loadEventsByMetadataFrom(StreamName $aStreamName, array $metadata, $minVersion = null)
+    {
         $queryBuilder = $this->connection->createQueryBuilder();
 
-        $table = $this->getTable($aggregateType);
+        $table = $this->getTable($aStreamName);
 
         $queryBuilder
             ->select('*')
             ->from($table, $table)
-            ->where('streamId = :streamId')
-            ->setParameter('streamId', $streamId->toString())
             ->orderBy('version', 'ASC');
 
-        if (!is_null($version)) {
+        foreach ($metadata as $key => $value) {
+            $queryBuilder->andWhere($key . ' = :value'.$key)
+                ->setParameter('value'.$key, (string)$value);
+        }
+
+        if (!is_null($minVersion)) {
             $queryBuilder
                 ->where('version >= :version')
-                ->setParameter('version', $version);
+                ->setParameter('version', $minVersion);
         }
 
         /* @var $stmt \Doctrine\DBAL\Statement */
@@ -132,53 +145,34 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
 
             $occurredOn = new \DateTime($eventData['occurredOn']);
 
-            $events[] = new StreamEvent($eventId, $eventName, $payload, (int) $eventData['version'], $occurredOn);
+            $events[] = new StreamEvent($eventId, $eventName, $payload, (int) $eventData['version'], $occurredOn, $metadata);
         }
 
-        return new Stream($aggregateType, $streamId, $events);
+        return $events;
     }
 
     /**
-     * Add new stream to the source stream
-     *
-     * @param Stream $stream
-     *
-     * @return void
-     */
-    public function addToExistingStream(Stream $stream)
-    {
-        foreach ($stream->streamEvents() as $event) {
-            $this->insertEvent($stream->aggregateType(), $stream->streamId(), $event);
-        }
-    }
-
-    /**
-     * @param AggregateType $aggregateType
-     * @param StreamId      $streamId
-     */
-    public function removeStream(AggregateType $aggregateType, StreamId $streamId)
-    {
-        $table = $this->getTable($aggregateType);
-
-        $this->connection->createQueryBuilder()
-            ->delete($table)
-            ->where('streamId = :streamId')
-            ->setParameter('streamId', $streamId->toString())
-            ->execute();
-    }
-
-    /**
-     * @param  array                   $streams
+     * @param Stream $aStream
+     * @throws \Prooph\EventStore\Exception\RuntimeException
      * @return bool
-     * @throws \BadMethodCallException
      */
-    public function createSchema(array $streams)
+    protected function createSchemaFor(Stream $aStream)
     {
+        if (count($aStream->streamEvents()) === 0) {
+            throw new RuntimeException(
+                sprintf(
+                    "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
+                    $aStream->streamName()->toString(),
+                    __CLASS__
+                )
+            );
+        }
+
+        $firstEvent = $aStream->streamEvents()[0];
+
         $schema = $this->connection->getSchemaManager()->createSchema();
 
-        foreach ($streams as $stream) {
-            static::addToSchema($schema, $this->getTable(new AggregateType($stream)));
-        }
+        static::addToSchema($schema, $this->getTable($aStream->streamName()), $firstEvent->metadata());
 
         $sqls = $schema->toSql($this->connection->getDatabasePlatform());
 
@@ -187,25 +181,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
         }
     }
 
-    /**
-     * @param array $streams
-     */
-    public function dropSchema(array $streams)
-    {
-        $schema = $this->connection->getSchemaManager()->createSchema();
-
-        foreach ($streams as $stream) {
-            static::addToSchema($schema, $this->getTable(new AggregateType($stream)));
-        }
-
-        $sqls = $schema->toDropSql($this->connection->getDatabasePlatform());
-
-        foreach ($sqls as $sql) {
-            $this->connection->executeQuery($sql);
-        }
-    }
-
-    public static function addToSchema(Schema $schema, $table)
+    public static function addToSchema(Schema $schema, $table, array $metadata)
     {
         $table = $schema->createTable($table);
 
@@ -213,14 +189,14 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
             'length' => 200
         ));
 
-        $table->addColumn('streamId', 'string', array(
-            'length' => 200
-        ));
-
         $table->addColumn('version', 'integer');
         $table->addColumn('eventName', 'text');
         $table->addColumn('payload', 'text');
         $table->addColumn('occurredOn', 'text');
+
+        foreach ($metadata as $key => $value) {
+            $table->addColumn($key, 'text');
+        }
 
         $table->setPrimaryKey(array('eventId'));
     }
@@ -243,48 +219,54 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
     /**
      * Insert an event
      *
-     * @param  \Prooph\EventStore\Stream\AggregateType $aggregateType
-     * @param  \Prooph\EventStore\Stream\StreamId      $streamId
-     * @param  \Prooph\EventStore\Stream\StreamEvent   $e
+     * @param StreamName $streamName
+     * @param StreamEvent $e
      * @return void
      */
-    protected function insertEvent(AggregateType $aggregateType, StreamId $streamId, StreamEvent $e)
+    protected function insertEvent(StreamName $streamName, StreamEvent $e)
     {
         $eventData = array(
             'eventId' => $e->eventId()->toString(),
-            'streamId' => $streamId->toString(),
             'version' => $e->version(),
             'eventName' => $e->eventName()->toString(),
             'payload' => Serializer::serialize($e->payload(), $this->serializerAdapter),
             'occurredOn' => $e->occurredOn()->format('Y-m-d\TH:i:s.uO')
         );
 
-        $this->connection->insert($this->getTable($aggregateType), $eventData);
+        foreach ($e->metadata() as $key => $value) {
+            $eventData[$key] = (string)$value;
+        }
+
+        $this->connection->insert($this->getTable($streamName), $eventData);
     }
 
     /**
-     * Get tablename for given $aggregateFQCN
+     * Get table name for given stream name
      *
-     * @param  AggregateType $aggregateType
+     * @param StreamName $streamName
      * @return string
      */
-    protected function getTable(AggregateType $aggregateType)
+    protected function getTable(StreamName $streamName)
     {
-        if (isset($this->aggregateTypeTableMap[$aggregateType->toString()])) {
-            $tableName = $this->aggregateTypeTableMap[$aggregateType->toString()];
+        if (isset($this->streamTableMap[$streamName->toString()])) {
+            $tableName = $this->streamTableMap[$streamName->toString()];
         } else {
-            $tableName = strtolower($this->getShortAggregateType($aggregateType)) . "_stream";
+            $tableName = strtolower($this->getShortStreamName($streamName));
+
+            if (strpos($tableName, "_stream") === false) {
+                $tableName.= "_stream";
+            }
         }
 
         return $tableName;
     }
 
     /**
-     * @param  AggregateType $aggregateType
+     * @param StreamName $streamName
      * @return string
      */
-    protected function getShortAggregateType(AggregateType $aggregateType)
+    protected function getShortStreamName(StreamName $streamName)
     {
-        return join('', array_slice(explode('\\', $aggregateType->toString()), -1));
+        return join('', array_slice(explode('\\', $streamName->toString()), -1));
     }
 }
