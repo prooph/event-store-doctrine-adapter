@@ -21,7 +21,3 @@ script: phpunit --coverage-text --coverage-clover ./build/logs/clover.doctrine-$
 
 after_script:
   - php vendor/bin/coveralls -v
-
-notifications:
-  email: false
-  hipchat: b00ece55a12a4a46874554f64029c9@Allgemein
