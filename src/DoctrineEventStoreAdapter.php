@@ -156,7 +156,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
      * @throws \Prooph\EventStore\Exception\RuntimeException
      * @return bool
      */
-    protected function createSchemaFor(Stream $aStream)
+    public function createSchemaFor(Stream $aStream)
     {
         if (count($aStream->streamEvents()) === 0) {
             throw new RuntimeException(
