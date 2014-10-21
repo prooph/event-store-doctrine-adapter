@@ -69,11 +69,24 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
 
     /**
      * @param Stream $aStream
+     * @throws \Prooph\EventStore\Exception\RuntimeException If creation of stream fails
      * @return void
      */
     public function create(Stream $aStream)
     {
-        $this->createSchemaFor($aStream);
+        if (count($aStream->streamEvents()) === 0) {
+            throw new RuntimeException(
+                sprintf(
+                    "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
+                    $aStream->streamName()->toString(),
+                    __CLASS__
+                )
+            );
+        }
+
+        $firstEvent = $aStream->streamEvents()[0];
+
+        $this->createSchemaFor($aStream->streamName(), $firstEvent->metadata());
 
         $this->appendTo($aStream->streamName(), $aStream->streamEvents());
     }
@@ -152,29 +165,22 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
     }
 
     /**
-     * @param Stream $aStream
-     * @throws \Prooph\EventStore\Exception\RuntimeException
-     * @return bool
+     * @param StreamName $aStreamName
+     * @param array $metadata
+     * @param bool $returnSql
+     * @return array|void If $returnSql is set to true then method returns array of SQL strings
      */
-    public function createSchemaFor(Stream $aStream)
+    public function createSchemaFor(StreamName $aStreamName, array $metadata, $returnSql = false)
     {
-        if (count($aStream->streamEvents()) === 0) {
-            throw new RuntimeException(
-                sprintf(
-                    "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
-                    $aStream->streamName()->toString(),
-                    __CLASS__
-                )
-            );
-        }
+        $schema = new Schema();
 
-        $firstEvent = $aStream->streamEvents()[0];
-
-        $schema = $this->connection->getSchemaManager()->createSchema();
-
-        static::addToSchema($schema, $this->getTable($aStream->streamName()), $firstEvent->metadata());
+        static::addToSchema($schema, $this->getTable($aStreamName), $metadata);
 
         $sqls = $schema->toSql($this->connection->getDatabasePlatform());
+
+        if ($returnSql) {
+            return $sqls;
+        }
 
         foreach ($sqls as $sql) {
             $this->connection->executeQuery($sql);
@@ -267,6 +273,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
      */
     protected function getShortStreamName(StreamName $streamName)
     {
-        return join('', array_slice(explode('\\', $streamName->toString()), -1));
+        $streamName = str_replace('-', '_', $streamName->toString());
+        return join('', array_slice(explode('\\', $streamName), -1));
     }
 }
