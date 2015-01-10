@@ -158,6 +158,13 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
 
             $occurredOn = new \DateTime($eventData['occurredOn']);
 
+            //Add metadata stored in table
+            foreach ($eventData as $key => $value) {
+                if (! in_array($key, ['eventId', 'eventName', 'occurredOn', 'payload', 'version'])) {
+                    $metadata[$key] = $value;
+                }
+            }
+
             $events[] = new StreamEvent($eventId, $eventName, $payload, (int) $eventData['version'], $occurredOn, $metadata);
         }
 
