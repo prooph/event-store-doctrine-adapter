@@ -145,7 +145,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
 
         if (!is_null($minVersion)) {
             $queryBuilder
-                ->where('version >= :version')
+                ->andWhere('version >= :version')
                 ->setParameter('version', $minVersion);
         }
 
