@@ -5,21 +5,19 @@ namespace Prooph\EventStore\Adapter\Doctrine;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Schema\Schema;
-use Prooph\EventStore\Adapter\AdapterInterface;
+use Prooph\Common\Messaging\DomainEvent;
+use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Exception\ConfigurationException;
-use Prooph\EventStore\Adapter\Feature\TransactionFeatureInterface;
+use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
 use Prooph\EventStore\Exception\RuntimeException;
-use Prooph\EventStore\Stream\EventId;
-use Prooph\EventStore\Stream\EventName;
 use Prooph\EventStore\Stream\Stream;
-use Prooph\EventStore\Stream\StreamEvent;
 use Prooph\EventStore\Stream\StreamName;
 use Zend\Serializer\Serializer;
 
 /**
  * EventStore Adapter for Doctrine
  */
-class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureInterface
+class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 {
     /**
      * @var Connection
@@ -43,10 +41,10 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
     /**
      * @var array
      */
-    protected $standardColumns = ['eventId', 'eventName', 'occurredOn', 'payload', 'version'];
+    protected $standardColumns = ['event_id', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
 
     /**
-     * @param  array                                                       $configuration
+     * @param  array $configuration
      * @throws \Prooph\EventStore\Adapter\Exception\ConfigurationException
      */
     public function __construct(array $configuration)
@@ -73,65 +71,65 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
     }
 
     /**
-     * @param Stream $aStream
+     * @param Stream $stream
      * @throws \Prooph\EventStore\Exception\RuntimeException If creation of stream fails
      * @return void
      */
-    public function create(Stream $aStream)
+    public function create(Stream $stream)
     {
-        if (count($aStream->streamEvents()) === 0) {
+        if (count($stream->streamEvents()) === 0) {
             throw new RuntimeException(
                 sprintf(
                     "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
-                    $aStream->streamName()->toString(),
+                    $stream->streamName()->toString(),
                     __CLASS__
                 )
             );
         }
 
-        $firstEvent = $aStream->streamEvents()[0];
+        $firstEvent = $stream->streamEvents()[0];
 
-        $this->createSchemaFor($aStream->streamName(), $firstEvent->metadata());
+        $this->createSchemaFor($stream->streamName(), $firstEvent->metadata());
 
-        $this->appendTo($aStream->streamName(), $aStream->streamEvents());
+        $this->appendTo($stream->streamName(), $stream->streamEvents());
     }
 
     /**
-     * @param StreamName $aStreamName
-     * @param array $streamEvents
+     * @param StreamName $streamName
+     * @param DomainEvent[] $streamEvents
      * @throws \Prooph\EventStore\Exception\StreamNotFoundException If stream does not exist
      * @return void
      */
-    public function appendTo(StreamName $aStreamName, array $streamEvents)
+    public function appendTo(StreamName $streamName, array $streamEvents)
     {
         foreach ($streamEvents as $event) {
-            $this->insertEvent($aStreamName, $event);
+            $this->insertEvent($streamName, $event);
         }
     }
 
     /**
-     * @param StreamName $aStreamName
+     * @param StreamName $streamName
      * @param null|int $minVersion
      * @return Stream|null
      */
-    public function load(StreamName $aStreamName, $minVersion = null)
+    public function load(StreamName $streamName, $minVersion = null)
     {
-        $events = $this->loadEventsByMetadataFrom($aStreamName, array(), $minVersion);
+        $events = $this->loadEventsByMetadataFrom($streamName, array(), $minVersion);
 
-        return new Stream($aStreamName, $events);
+        return new Stream($streamName, $events);
     }
 
     /**
-     * @param StreamName $aStreamName
+     * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return StreamEvent[]
+     * @return DomainEvent[]
      */
-    public function loadEventsByMetadataFrom(StreamName $aStreamName, array $metadata, $minVersion = null)
+    public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
     {
         $queryBuilder = $this->connection->createQueryBuilder();
 
-        $table = $this->getTable($aStreamName);
+        $table = $this->getTable($streamName);
 
         $queryBuilder
             ->select('*')
@@ -157,11 +155,7 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
         foreach ($stmt->fetchAll() as $eventData) {
             $payload = Serializer::unserialize($eventData['payload'], $this->serializerAdapter);
 
-            $eventId = new EventId($eventData['eventId']);
-
-            $eventName = new EventName($eventData['eventName']);
-
-            $occurredOn = new \DateTime($eventData['occurredOn']);
+            $eventClass = $eventData['event_class'];
 
             //Add metadata stored in table
             foreach ($eventData as $key => $value) {
@@ -170,23 +164,32 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
                 }
             }
 
-            $events[] = new StreamEvent($eventId, $eventName, $payload, (int) $eventData['version'], $occurredOn, $metadata);
+            $events[] = $eventClass::fromArray(
+                [
+                    'uuid' => $eventData['event_id'],
+                    'name' => $eventData['event_name'],
+                    'version' => (int)$eventData['version'],
+                    'created_at' => $eventData['created_at'],
+                    'payload' => $payload,
+                    'metadata' => $metadata
+                ]
+            );
         }
 
         return $events;
     }
 
     /**
-     * @param StreamName $aStreamName
+     * @param StreamName $streamName
      * @param array $metadata
      * @param bool $returnSql
      * @return array|void If $returnSql is set to true then method returns array of SQL strings
      */
-    public function createSchemaFor(StreamName $aStreamName, array $metadata, $returnSql = false)
+    public function createSchemaFor(StreamName $streamName, array $metadata, $returnSql = false)
     {
         $schema = new Schema();
 
-        static::addToSchema($schema, $this->getTable($aStreamName), $metadata);
+        static::addToSchema($schema, $this->getTable($streamName), $metadata);
 
         $sqls = $schema->toSql($this->connection->getDatabasePlatform());
 
@@ -203,20 +206,19 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
     {
         $table = $schema->createTable($table);
 
-        $table->addColumn('eventId', 'string', array(
-            'length' => 200
-        ));
+        $table->addColumn('event_id', 'string', ['length' => 36]);
 
         $table->addColumn('version', 'integer');
-        $table->addColumn('eventName', 'text');
+        $table->addColumn('event_name', 'string', ['length' => 100]);
+        $table->addColumn('event_class', 'string', ['length' => 100]);
         $table->addColumn('payload', 'text');
-        $table->addColumn('occurredOn', 'text');
+        $table->addColumn('created_at', 'string', ['length' => 50]);
 
         foreach ($metadata as $key => $value) {
-            $table->addColumn($key, 'text');
+            $table->addColumn($key, 'string', ['length' => 100]);
         }
 
-        $table->setPrimaryKey(array('eventId'));
+        $table->setPrimaryKey(array('event_id'));
     }
 
     public function beginTransaction()
@@ -238,17 +240,18 @@ class DoctrineEventStoreAdapter implements AdapterInterface, TransactionFeatureI
      * Insert an event
      *
      * @param StreamName $streamName
-     * @param StreamEvent $e
+     * @param DomainEvent $e
      * @return void
      */
-    protected function insertEvent(StreamName $streamName, StreamEvent $e)
+    protected function insertEvent(StreamName $streamName, DomainEvent $e)
     {
         $eventData = array(
-            'eventId' => $e->eventId()->toString(),
+            'event_id' => $e->uuid()->toString(),
             'version' => $e->version(),
-            'eventName' => $e->eventName()->toString(),
+            'event_name' => $e->messageName(),
+            'event_class' => get_class($e),
             'payload' => Serializer::serialize($e->payload(), $this->serializerAdapter),
-            'occurredOn' => $e->occurredOn()->format('Y-m-d\TH:i:s.uO')
+            'created_at' => $e->createdAt()->format(\DateTime::ISO8601)
         );
 
         foreach ($e->metadata() as $key => $value) {

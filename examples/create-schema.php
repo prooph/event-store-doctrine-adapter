@@ -51,15 +51,6 @@ $eventStore->getAdapter()->createSchemaFor(
     array('aggregate_id' => 'string')
 );
 
-//When using the \Prooph\EventStore\Stream\MappedSuperclassStreamStrategy
-//you need to create a stream table for each aggregate root superclass
-//The aggregate_type metadata column is required for this strategy.
-//It stores the subclass information.
-$eventStore->getAdapter()->createSchemaFor(
-    new \Prooph\EventStore\Stream\StreamName('My\Model\Superclass'),
-    array('aggregate_id' => 'string', 'aggregate_type' => 'string')
-);
-
 
 //The \Prooph\EventStore\Stream\AggregateStreamStrategy needs no existing tables. It creates a new table for
 //each aggregate instance. This strategy is not the best choice when working with a RDBMS,

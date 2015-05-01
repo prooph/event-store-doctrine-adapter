@@ -11,13 +11,13 @@
         }
     ],
     "require": {
-        "php": ">=5.4",
+        "php": ">=5.5",
         "doctrine/dbal": "~2.1",
         "zendframework/zend-serializer" : "~2.3",
         "beberlei/assert": "~2.0"
     },
     "require-dev": {
-        "prooph/event-store": "~2.0",
+        "prooph/event-store": "dev-master",
         "phpunit/phpunit": "3.7.*",
         "satooshi/php-coveralls": "dev-master"
     },
