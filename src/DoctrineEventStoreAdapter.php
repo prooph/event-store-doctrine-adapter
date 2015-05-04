@@ -152,7 +152,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
         $events = array();
 
-        foreach ($stmt->fetchAll() as $eventData) {
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $eventData) {
             $payload = Serializer::unserialize($eventData['payload'], $this->serializerAdapter);
 
             $eventClass = $eventData['event_class'];
