@@ -57,7 +57,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * @var array
      */
-    private $standardColumns = ['event_id', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
+    private $standardColumns = ['event_id', 'event_name', 'created_at', 'payload', 'version'];
 
     /**
      * @param Connection $dbalConnection
