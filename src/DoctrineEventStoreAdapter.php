@@ -223,6 +223,10 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
     public function beginTransaction()
     {
+        if (0 != $this->connection->getTransactionNestingLevel()) {
+            throw new \RuntimeException('Transaction already started');
+        }
+
         $this->connection->beginTransaction();
     }
 
