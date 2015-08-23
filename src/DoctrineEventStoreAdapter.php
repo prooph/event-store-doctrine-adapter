@@ -1,73 +1,83 @@
 <?php
-
+/*
+ * This file is part of the prooph/event-store-doctrine-adapter.
+ * (c) 2014-2015 prooph software GmbH <contact@prooph.de>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
 namespace Prooph\EventStore\Adapter\Doctrine;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Schema\Schema;
-use Prooph\Common\Messaging\DomainEvent;
+use Prooph\Common\Messaging\Message;
+use Prooph\Common\Messaging\MessageConverter;
+use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
-use Prooph\EventStore\Adapter\Exception\ConfigurationException;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
+use Prooph\EventStore\Adapter\PayloadSerializer;
 use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
-use Zend\Serializer\Serializer;
 
 /**
  * EventStore Adapter for Doctrine
  */
-class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
+final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 {
     /**
      * @var Connection
      */
-    protected $connection;
+    private $connection;
 
     /**
      * Custom sourceType to table mapping
      *
      * @var array
      */
-    protected $streamTableMap = [];
+    private $streamTableMap = [];
+
+    /**
+     * @var MessageFactory
+     */
+    private $messageFactory;
+
+    /**
+     * @var MessageConverter
+     */
+    private $messageConverter;
 
     /**
      * Serialize adapter used to serialize event payload
      *
-     * @var string|\Zend\Serializer\Adapter\AdapterInterface
+     * @var PayloadSerializer
      */
-    protected $serializerAdapter;
+    private $payloadSerializer;
 
     /**
      * @var array
      */
-    protected $standardColumns = ['event_id', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
+    private $standardColumns = ['event_id', 'event_name', 'created_at', 'payload', 'version'];
 
     /**
-     * @param  array $configuration
-     * @throws \Prooph\EventStore\Adapter\Exception\ConfigurationException
+     * @param Connection $dbalConnection
+     * @param MessageFactory $messageFactory
+     * @param MessageConverter $messageConverter
+     * @param PayloadSerializer $payloadSerializer
+     * @param array $streamTableMap
      */
-    public function __construct(array $configuration)
+    public function __construct(
+        Connection $dbalConnection,
+        MessageFactory $messageFactory,
+        MessageConverter $messageConverter,
+        PayloadSerializer $payloadSerializer,
+        array $streamTableMap = [])
     {
-        if (!isset($configuration['connection'])) {
-            throw new ConfigurationException('DB connection configuration is missing');
-        }
-
-        if (isset($configuration['stream_table_map'])) {
-            $this->streamTableMap = $configuration['stream_table_map'];
-        }
-
-        $connection = $configuration['connection'];
-
-        if (!$connection instanceof Connection) {
-            $connection = DriverManager::getConnection($connection);
-        }
-
-        $this->connection = $connection;
-
-        if (isset($configuration['serializer_adapter'])) {
-            $this->serializerAdapter = $configuration['serializer_adapter'];
-        }
+        $this->connection = $dbalConnection;
+        $this->messageFactory = $messageFactory;
+        $this->messageConverter = $messageConverter;
+        $this->payloadSerializer = $payloadSerializer;
+        $this->streamTableMap = $streamTableMap;
     }
 
     /**
@@ -96,7 +106,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param DomainEvent[] $streamEvents
+     * @param Message[] $streamEvents
      * @throws \Prooph\EventStore\Exception\StreamNotFoundException If stream does not exist
      * @return void
      */
@@ -123,7 +133,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return DomainEvent[]
+     * @return Message[]
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
     {
@@ -153,9 +163,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         $events = [];
 
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $eventData) {
-            $payload = Serializer::unserialize($eventData['payload'], $this->serializerAdapter);
-
-            $eventClass = $eventData['event_class'];
+            $payload = $this->payloadSerializer->unserializePayload($eventData['payload']);
 
             //Add metadata stored in table
             foreach ($eventData as $key => $value) {
@@ -164,16 +172,13 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 }
             }
 
-            $events[] = $eventClass::fromArray(
-                [
-                    'uuid' => $eventData['event_id'],
-                    'name' => $eventData['event_name'],
-                    'version' => (int)$eventData['version'],
-                    'created_at' => $eventData['created_at'],
-                    'payload' => $payload,
-                    'metadata' => $metadata
-                ]
-            );
+            $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
+                'uuid' => $eventData['event_id'],
+                'version' => (int)$eventData['version'],
+                'created_at' => $eventData['created_at'],
+                'payload' => $payload,
+                'metadata' => $metadata
+            ]);
         }
 
         return $events;
@@ -210,7 +215,6 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
         $table->addColumn('version', 'integer');
         $table->addColumn('event_name', 'string', ['length' => 100]);
-        $table->addColumn('event_class', 'string', ['length' => 100]);
         $table->addColumn('payload', 'text');
         $table->addColumn('created_at', 'string', ['length' => 50]);
 
@@ -237,37 +241,12 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     }
 
     /**
-     * Insert an event
-     *
-     * @param StreamName $streamName
-     * @param DomainEvent $e
-     * @return void
-     */
-    protected function insertEvent(StreamName $streamName, DomainEvent $e)
-    {
-        $eventData = [
-            'event_id' => $e->uuid()->toString(),
-            'version' => $e->version(),
-            'event_name' => $e->messageName(),
-            'event_class' => get_class($e),
-            'payload' => Serializer::serialize($e->payload(), $this->serializerAdapter),
-            'created_at' => $e->createdAt()->format(\DateTime::ISO8601)
-        ];
-
-        foreach ($e->metadata() as $key => $value) {
-            $eventData[$key] = (string)$value;
-        }
-
-        $this->connection->insert($this->getTable($streamName), $eventData);
-    }
-
-    /**
      * Get table name for given stream name
      *
      * @param StreamName $streamName
      * @return string
      */
-    protected function getTable(StreamName $streamName)
+    public function getTable(StreamName $streamName)
     {
         if (isset($this->streamTableMap[$streamName->toString()])) {
             $tableName = $this->streamTableMap[$streamName->toString()];
@@ -283,10 +262,44 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     }
 
     /**
+     * @return Connection
+     */
+    public function getConnection()
+    {
+        return $this->connection;
+    }
+
+    /**
+     * Insert an event
+     *
+     * @param StreamName $streamName
+     * @param Message $e
+     * @return void
+     */
+    private function insertEvent(StreamName $streamName, Message $e)
+    {
+        $eventArr = $this->messageConverter->convertToArray($e);
+
+        $eventData = [
+            'event_id' => $eventArr['uuid'],
+            'version' => $eventArr['version'],
+            'event_name' => $eventArr['message_name'],
+            'payload' => $this->payloadSerializer->serializePayload($eventArr['payload']),
+            'created_at' => $eventArr['created_at']
+        ];
+
+        foreach ($eventArr['metadata'] as $key => $value) {
+            $eventData[$key] = (string)$value;
+        }
+
+        $this->connection->insert($this->getTable($streamName), $eventData);
+    }
+
+    /**
      * @param StreamName $streamName
      * @return string
      */
-    protected function getShortStreamName(StreamName $streamName)
+    private function getShortStreamName(StreamName $streamName)
     {
         $streamName = str_replace('-', '_', $streamName->toString());
         return implode('', array_slice(explode('\\', $streamName), -1));

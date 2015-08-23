@@ -13,6 +13,12 @@ The database structure depends on the [stream strategies](https://github.com/pro
 You can find example SQLs for MySql in the [scripts folder](https://github.com/prooph/event-store-doctrine-adapter/blob/master/scripts/)
 and an [example script](https://github.com/prooph/event-store-doctrine-adapter/blob/master/examples/create-schema.php) of how you can use the adapter to generate stream tables.
 
+Requirements
+------------
+- PHP >= 5.5
+- [Doctrine DBAL](https://github.com/doctrine/dbal) ^2.4
+- [Prooph Event Store](https://github.com/prooph/event-store) ^5.0
+
 License
 -------
 

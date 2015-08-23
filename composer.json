@@ -8,16 +8,22 @@
             "name": "Jan Sorgalla",
             "email": "jan.sorgalla@dotsunited.de",
             "homepage": "http://dotsunited.de"
+        },
+        {
+            "name": "Alexander Miertsch",
+            "email": "contact@prooph.de",
+            "homepage": "http://www.prooph.de/"
         }
     ],
     "require": {
         "php": ">=5.5",
-        "doctrine/dbal": "~2.1",
-        "zendframework/zend-serializer" : "~2.3",
-        "beberlei/assert": "~2.0"
+        "doctrine/dbal": "^2.4",
+        "beberlei/assert": "^2.0",
+        "prooph/common": "^3.3",
+        "container-interop/container-interop" : "~1.1"
     },
     "require-dev": {
-        "prooph/event-store": "dev-master",
+        "prooph/event-store": "dev-5.0-beta",
         "phpunit/phpunit": "4.7.*",
         "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "dev-master"
@@ -28,13 +34,8 @@
         }
     },
     "autoload-dev": {
-        "psr-0": {
+        "psr-4": {
             "Prooph\\EventStoreTest\\": "vendor/prooph/event-store/tests/"
-        }
-    },
-    "extra": {
-        "branch-alias": {
-            "dev-master": "0.1-dev"
         }
     }
 }
