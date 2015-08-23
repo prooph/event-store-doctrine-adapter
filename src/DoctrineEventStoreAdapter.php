@@ -29,7 +29,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var array
      */
-    protected $streamTableMap = array();
+    protected $streamTableMap = [];
 
     /**
      * Serialize adapter used to serialize event payload
@@ -114,7 +114,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function load(StreamName $streamName, $minVersion = null)
     {
-        $events = $this->loadEventsByMetadataFrom($streamName, array(), $minVersion);
+        $events = $this->loadEventsByMetadataFrom($streamName, [], $minVersion);
 
         return new Stream($streamName, $events);
     }
@@ -150,7 +150,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         /* @var $stmt \Doctrine\DBAL\Statement */
         $stmt = $queryBuilder->execute();
 
-        $events = array();
+        $events = [];
 
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $eventData) {
             $payload = Serializer::unserialize($eventData['payload'], $this->serializerAdapter);
@@ -218,7 +218,7 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
             $table->addColumn($key, 'string', ['length' => 100]);
         }
 
-        $table->setPrimaryKey(array('event_id'));
+        $table->setPrimaryKey(['event_id']);
     }
 
     public function beginTransaction()
@@ -245,14 +245,14 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     protected function insertEvent(StreamName $streamName, DomainEvent $e)
     {
-        $eventData = array(
+        $eventData = [
             'event_id' => $e->uuid()->toString(),
             'version' => $e->version(),
             'event_name' => $e->messageName(),
             'event_class' => get_class($e),
             'payload' => Serializer::serialize($e->payload(), $this->serializerAdapter),
             'created_at' => $e->createdAt()->format(\DateTime::ISO8601)
-        );
+        ];
 
         foreach ($e->metadata() as $key => $value) {
             $eventData[$key] = (string)$value;
@@ -289,6 +289,6 @@ class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     protected function getShortStreamName(StreamName $streamName)
     {
         $streamName = str_replace('-', '_', $streamName->toString());
-        return join('', array_slice(explode('\\', $streamName), -1));
+        return implode('', array_slice(explode('\\', $streamName), -1));
     }
 }

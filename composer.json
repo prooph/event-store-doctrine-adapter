@@ -18,7 +18,8 @@
     },
     "require-dev": {
         "prooph/event-store": "dev-master",
-        "phpunit/phpunit": "3.7.*",
+        "phpunit/phpunit": "4.7.*",
+        "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "dev-master"
     },
     "autoload": {
