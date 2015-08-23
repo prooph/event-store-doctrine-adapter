@@ -20,12 +20,12 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
     protected function setUp()
     {
-        $options = array(
-            'connection' => array(
+        $options = [
+            'connection' => [
                 'driver' => 'pdo_sqlite',
                 'dbname' => ':memory:'
-            )
-        );
+            ]
+        ];
 
         $this->adapter = new DoctrineEventStoreAdapter($options);
     }
@@ -43,7 +43,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $this->adapter->commit();
 
-        $streamEvents = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), array('tag' => 'person'));
+        $streamEvents = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
 
         $this->assertEquals(1, count($streamEvents));
 
@@ -62,13 +62,13 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $this->adapter->create($this->getTestStream());
 
         $streamEvent = UsernameChanged::with(
-            array('name' => 'John Doe'),
+            ['name' => 'John Doe'],
             2
         );
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
 
-        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), array($streamEvent));
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent]);
 
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'));
 
@@ -84,20 +84,20 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $this->adapter->create($this->getTestStream());
 
         $streamEvent1 = UsernameChanged::with(
-            array('name' => 'John Doe'),
+            ['name' => 'John Doe'],
             2
         );
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent1, 'tag', 'person');
 
         $streamEvent2 = UsernameChanged::with(
-            array('name' => 'Jane Doe'),
+            ['name' => 'Jane Doe'],
             2
         );
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent2, 'tag', 'person');
 
-        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), array($streamEvent1, $streamEvent2));
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent1, $streamEvent2]);
 
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'), 2);
 
@@ -112,12 +112,12 @@ class DoctrineEventStoreAdapterTest extends TestCase
      */
     public function it_can_be_constructed_with_existing_db_adapter()
     {
-        $connection = DriverManager::getConnection(array(
+        $connection = DriverManager::getConnection([
             'driver' => 'pdo_sqlite',
             'dbname' => ':memory:'
-        ));
+        ]);
 
-        $esAdapter = new DoctrineEventStoreAdapter(array('connection' => $connection));
+        $esAdapter = new DoctrineEventStoreAdapter(['connection' => $connection]);
 
         $this->assertSame($connection, \PHPUnit_Framework_Assert::readAttribute($esAdapter, 'connection'));
     }
@@ -128,12 +128,12 @@ class DoctrineEventStoreAdapterTest extends TestCase
     private function getTestStream()
     {
         $streamEvent = UserCreated::with(
-            array('name' => 'Max Mustermann', 'email' => 'contact@prooph.de'),
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
             1
         );
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
 
-        return new Stream(new StreamName('Prooph\Model\User'), array($streamEvent));
+        return new Stream(new StreamName('Prooph\Model\User'), [$streamEvent]);
     }
 }

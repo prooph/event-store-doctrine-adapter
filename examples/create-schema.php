@@ -5,7 +5,7 @@
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
- * 
+ *
  * Date: 21.10.14 - 20:03
  */
 
@@ -40,7 +40,7 @@ $eventStore = new \Prooph\EventStore\EventStore($esConfig);
 //you can use the following code snippet to create a database schema:
 $eventStore->getAdapter()->createSchemaFor(
     new \Prooph\EventStore\Stream\StreamName('event_stream'),
-    array('aggregate_id' => 'string', 'aggregate_type' => 'string')
+    ['aggregate_id' => 'string', 'aggregate_type' => 'string']
 );
 
 //When using the \Prooph\EventStore\Stream\AggregateTypeStreamStrategy
@@ -48,7 +48,7 @@ $eventStore->getAdapter()->createSchemaFor(
 //The aggregate_type metadata is not required for this strategy
 $eventStore->getAdapter()->createSchemaFor(
     new \Prooph\EventStore\Stream\StreamName('My\Model\AggregateRoot'),
-    array('aggregate_id' => 'string')
+    ['aggregate_id' => 'string']
 );
 
 
