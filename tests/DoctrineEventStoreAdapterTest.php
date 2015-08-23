@@ -1,10 +1,12 @@
 <?php
 
-namespace DotsUnitedProoph\EventStoreTest\Adapter\Doctrine;
+namespace Prooph\EventStoreTest\Adapter\Doctrine;
 
 use Doctrine\DBAL\DriverManager;
+use Prooph\Common\Messaging\FQCNMessageFactory;
+use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
-use Prooph\EventStore\Stream\DomainEventMetadataWriter;
+use Prooph\EventStore\Adapter\PayloadSerializer\JsonPayloadSerializer;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 use Prooph\EventStoreTest\Mock\UserCreated;
@@ -20,14 +22,17 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
     protected function setUp()
     {
-        $options = [
-            'connection' => [
-                'driver' => 'pdo_sqlite',
-                'dbname' => ':memory:'
-            ]
+        $connection = [
+            'driver' => 'pdo_sqlite',
+            'dbname' => ':memory:'
         ];
 
-        $this->adapter = new DoctrineEventStoreAdapter($options);
+        $this->adapter = new DoctrineEventStoreAdapter(
+            DriverManager::getConnection($connection),
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            new JsonPayloadSerializer()
+        );
     }
 
     /**
@@ -66,7 +71,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
             2
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent]);
 
@@ -88,14 +93,15 @@ class DoctrineEventStoreAdapterTest extends TestCase
             2
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent1, 'tag', 'person');
+        $streamEvent1 = $streamEvent1->withAddedMetadata('tag', 'person');
+
 
         $streamEvent2 = UsernameChanged::with(
             ['name' => 'Jane Doe'],
             2
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent2, 'tag', 'person');
+        $streamEvent2 = $streamEvent2->withAddedMetadata('tag', 'person');
 
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent1, $streamEvent2]);
 
@@ -107,20 +113,6 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $this->assertEquals('Jane Doe', $stream->streamEvents()[1]->payload()['name']);
     }
 
-    /**
-     * @test
-     */
-    public function it_can_be_constructed_with_existing_db_adapter()
-    {
-        $connection = DriverManager::getConnection([
-            'driver' => 'pdo_sqlite',
-            'dbname' => ':memory:'
-        ]);
-
-        $esAdapter = new DoctrineEventStoreAdapter(['connection' => $connection]);
-
-        $this->assertSame($connection, \PHPUnit_Framework_Assert::readAttribute($esAdapter, 'connection'));
-    }
 
     /**
      * @return Stream
@@ -132,7 +124,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
             1
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
         return new Stream(new StreamName('Prooph\Model\User'), [$streamEvent]);
     }
