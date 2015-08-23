@@ -41,7 +41,7 @@ final class DoctrineEventStoreAdapterFactory
 
         $connection = null;
 
-        if (isset($adapterOptions['connection_alias']) && $container->has((string)$adapterOptions['connection_alias'])) {
+        if (isset($adapterOptions['connection_alias']) && $container->has($adapterOptions['connection_alias'])) {
             $connection = $container->get($adapterOptions['connection_alias']);
         }
 
