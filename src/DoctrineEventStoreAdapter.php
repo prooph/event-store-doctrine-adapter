@@ -174,7 +174,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
             }
 
             $createdAt = \DateTimeImmutable::createFromFormat(
-                'Y-m-d\TH:i:s.uO',
+                'Y-m-d\TH:i:s.u',
                 $eventData['created_at'],
                 new \DateTimeZone('UTC')
             );
@@ -298,7 +298,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
             'version' => $eventArr['version'],
             'event_name' => $eventArr['message_name'],
             'payload' => $this->payloadSerializer->serializePayload($eventArr['payload']),
-            'created_at' => $eventArr['created_at']->format('Y-m-d\TH:i:s.uO'),
+            'created_at' => $eventArr['created_at']->format('Y-m-d\TH:i:s.u'),
         ];
 
         foreach ($eventArr['metadata'] as $key => $value) {
