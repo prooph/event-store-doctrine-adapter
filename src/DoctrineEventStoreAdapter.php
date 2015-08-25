@@ -12,6 +12,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageConverter;
+use Prooph\Common\Messaging\MessageDataAssertion;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
@@ -172,10 +173,16 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 }
             }
 
+            $createdAt = \DateTimeImmutable::createFromFormat(
+                'Y-m-d\TH:i:s.uO',
+                $eventData['created_at'],
+                new \DateTimeZone('UTC')
+            );
+
             $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
                 'uuid' => $eventData['event_id'],
                 'version' => (int)$eventData['version'],
-                'created_at' => $eventData['created_at'],
+                'created_at' => $createdAt,
                 'payload' => $payload,
                 'metadata' => $metadata
             ]);
@@ -284,12 +291,14 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     {
         $eventArr = $this->messageConverter->convertToArray($e);
 
+        MessageDataAssertion::assert($eventArr);
+
         $eventData = [
             'event_id' => $eventArr['uuid'],
             'version' => $eventArr['version'],
             'event_name' => $eventArr['message_name'],
             'payload' => $this->payloadSerializer->serializePayload($eventArr['payload']),
-            'created_at' => $eventArr['created_at']
+            'created_at' => $eventArr['created_at']->format('Y-m-d\TH:i:s.uO'),
         ];
 
         foreach ($eventArr['metadata'] as $key => $value) {
