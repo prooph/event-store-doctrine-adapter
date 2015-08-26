@@ -126,6 +126,76 @@ class DoctrineEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     * @expectedException Prooph\EventStore\Exception\RuntimeException
+     * @expectedExceptionMessage Cannot create empty stream Prooph\Model\User.
+     */
+    public function it_throws_exception_when_empty_stream_created()
+    {
+        $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), []));
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_return_sql_string_for_schema_creation()
+    {
+        $sqls = $this->adapter->createSchemaFor(new StreamName('Prooph\Model\User'), [], true);
+
+        $this->assertInternalType('array', $sqls);
+        $this->assertArrayHasKey(0, $sqls);
+        $this->assertInternalType('string', $sqls[0]);
+    }
+
+    /**
+     * @test
+     */
+    public function it_injected_correct_db_connection()
+    {
+        $connectionMock = $this->getMockForAbstractClass('Doctrine\DBAL\Connection', [], '', false);
+
+        $adapter = new DoctrineEventStoreAdapter(
+            $connectionMock,
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            new JsonPayloadSerializer()
+        );
+
+        $this->assertSame($connectionMock, $adapter->getConnection());
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_rollback_transaction()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $this->adapter->beginTransaction();
+
+        $streamEvent = UserCreated::with(
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
+            1
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent]);
+
+        $this->adapter->rollback();
+
+        $result = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+
+        $this->assertCount(1, $result);
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()
