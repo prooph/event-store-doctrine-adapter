@@ -84,7 +84,7 @@ final class DoctrineStreamIterator implements Iterator
     public function current()
     {
         if (false === $this->currentItem) {
-            return null;
+            return;
         }
 
         $payload = $this->payloadSerializer->unserializePayload($this->currentItem['payload']);

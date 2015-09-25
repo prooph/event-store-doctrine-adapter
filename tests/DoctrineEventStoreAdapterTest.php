@@ -59,7 +59,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $testStream->streamEvents()->rewind();
 
         $testEvent = $testStream->streamEvents()->current();
-        
+
         $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
         $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $event->messageName());
