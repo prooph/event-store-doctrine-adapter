@@ -10,7 +10,6 @@ namespace Prooph\EventStore\Adapter\Doctrine;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
-use Iterator;
 use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageDataAssertion;
@@ -57,6 +56,11 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     private $payloadSerializer;
 
     /**
+     * @var array
+     */
+    private $standardColumns = ['event_id', 'event_name', 'created_at', 'payload', 'version'];
+
+    /**
      * @param Connection $dbalConnection
      * @param MessageFactory $messageFactory
      * @param MessageConverter $messageConverter
@@ -84,7 +88,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function create(Stream $stream)
     {
-        if (!$stream->streamEvents()->valid()) {
+        if (count($stream->streamEvents()) === 0) {
             throw new RuntimeException(
                 sprintf(
                     "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
@@ -94,7 +98,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
             );
         }
 
-        $firstEvent = $stream->streamEvents()->current();
+        $firstEvent = $stream->streamEvents()[0];
 
         $this->createSchemaFor($stream->streamName(), $firstEvent->metadata());
 
@@ -103,11 +107,11 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param Iterator $streamEvents
+     * @param Message[] $streamEvents
      * @throws \Prooph\EventStore\Exception\StreamNotFoundException If stream does not exist
      * @return void
      */
-    public function appendTo(StreamName $streamName, Iterator $streamEvents)
+    public function appendTo(StreamName $streamName, array $streamEvents)
     {
         foreach ($streamEvents as $event) {
             $this->insertEvent($streamName, $event);
@@ -130,7 +134,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return Iterator
+     * @return Message[]
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
     {
@@ -156,9 +160,35 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
         /* @var $stmt \Doctrine\DBAL\Statement */
         $stmt = $queryBuilder->execute();
-        $stmt->setFetchMode(\PDO::FETCH_ASSOC);
 
-        return new DoctrineStreamIterator($stmt, $this->messageFactory, $this->payloadSerializer, $metadata);
+        $events = [];
+
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $eventData) {
+            $payload = $this->payloadSerializer->unserializePayload($eventData['payload']);
+
+            //Add metadata stored in table
+            foreach ($eventData as $key => $value) {
+                if (! in_array($key, $this->standardColumns)) {
+                    $metadata[$key] = $value;
+                }
+            }
+
+            $createdAt = \DateTimeImmutable::createFromFormat(
+                'Y-m-d\TH:i:s.u',
+                $eventData['created_at'],
+                new \DateTimeZone('UTC')
+            );
+
+            $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
+                'uuid' => $eventData['event_id'],
+                'version' => (int)$eventData['version'],
+                'created_at' => $createdAt,
+                'payload' => $payload,
+                'metadata' => $metadata
+            ]);
+        }
+
+        return $events;
     }
 
     /**
@@ -184,11 +214,6 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         }
     }
 
-    /**
-     * @param Schema $schema
-     * @param string $table
-     * @param array $metadata
-     */
     public static function addToSchema(Schema $schema, $table, array $metadata)
     {
         $table = $schema->createTable($table);
@@ -207,9 +232,6 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         $table->setPrimaryKey(['event_id']);
     }
 
-    /**
-     * Begin transaction
-     */
     public function beginTransaction()
     {
         if (0 != $this->connection->getTransactionNestingLevel()) {
@@ -219,17 +241,11 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         $this->connection->beginTransaction();
     }
 
-    /**
-     * Commit transaction
-     */
     public function commit()
     {
         $this->connection->commit();
     }
 
-    /**
-     * Rollback transaction
-     */
     public function rollback()
     {
         $this->connection->rollBack();

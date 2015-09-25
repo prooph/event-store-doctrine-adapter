@@ -10,8 +10,8 @@ matrix:
     - php: 7
 
 env:
-  - DOCTRINE_VERSION=2.4.* ES_VERSION=dev-develop
-  - DOCTRINE_VERSION=^2.5 ES_VERSION=dev-develop
+  - DOCTRINE_VERSION=2.4.* ES_VERSION=dev-master
+  - DOCTRINE_VERSION=^2.5 ES_VERSION=dev-master
 
 before_script:
   - composer self-update
