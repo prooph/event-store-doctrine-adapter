@@ -11,6 +11,7 @@
 
 namespace Prooph\EventStore\Adapter\Doctrine;
 
+use Doctrine\DBAL\Query\QueryBuilder;
 use Iterator;
 use Doctrine\DBAL\Driver\PDOStatement;
 use Prooph\Common\Messaging\Message;
@@ -23,6 +24,11 @@ use Prooph\EventStore\Adapter\PayloadSerializer;
  */
 final class DoctrineStreamIterator implements Iterator
 {
+    /**
+     * @var QueryBuilder
+     */
+    private $queryBuilder;
+
     /**
      * @var PDOStatement
      */
@@ -56,26 +62,26 @@ final class DoctrineStreamIterator implements Iterator
     /**
      * @var int
      */
-    private $currentKey = -1;
+    private $currentKey;
 
     /**
-     * @param PDOStatement $statement
+     * @param QueryBuilder $queryBuilder
      * @param MessageFactory $messageFactory
      * @param PayloadSerializer $payloadSerializer
      * @param array $metadata
      */
     public function __construct(
-        PDOStatement $statement,
+        QueryBuilder $queryBuilder,
         MessageFactory $messageFactory,
         PayloadSerializer $payloadSerializer,
         array $metadata
     ) {
-        $this->statement = $statement;
+        $this->queryBuilder = $queryBuilder;
         $this->messageFactory = $messageFactory;
         $this->payloadSerializer = $payloadSerializer;
         $this->metadata = $metadata;
 
-        $this->next();
+        $this->rewind();
     }
 
     /**
@@ -146,10 +152,18 @@ final class DoctrineStreamIterator implements Iterator
     }
 
     /**
-     * Rewind (does nothing)
+     * Rewind
      */
     public function rewind()
     {
-        // do nothing
+        /* @var $stmt \Doctrine\DBAL\Statement */
+        $stmt = $this->queryBuilder->execute();
+        $stmt->setFetchMode(\PDO::FETCH_ASSOC);
+
+        $this->currentItem = null;
+        $this->currentKey = -1;
+        $this->statement = $stmt;
+
+        $this->next();
     }
 }

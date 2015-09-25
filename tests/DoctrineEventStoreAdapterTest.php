@@ -215,6 +215,33 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $this->assertEquals(0, $result->key());
         $result->next();
         $this->assertNull($result->current());
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_rewind_doctrine_stream_iterator()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $result = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+
+        $this->assertNotNull($result->current());
+        $this->assertEquals(0, $result->key());
+        $result->next();
+        $this->assertNull($result->current());
+
+        $result->rewind();
+        $this->assertNotNull($result->current());
+        $this->assertEquals(0, $result->key());
+        $result->next();
+        $this->assertNull($result->current());
         $this->assertFalse($result->key());
     }
 

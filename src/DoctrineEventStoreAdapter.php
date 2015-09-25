@@ -154,11 +154,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('version', $minVersion);
         }
 
-        /* @var $stmt \Doctrine\DBAL\Statement */
-        $stmt = $queryBuilder->execute();
-        $stmt->setFetchMode(\PDO::FETCH_ASSOC);
-
-        return new DoctrineStreamIterator($stmt, $this->messageFactory, $this->payloadSerializer, $metadata);
+        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
     }
 
     /**
