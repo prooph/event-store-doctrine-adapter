@@ -21,16 +21,19 @@
     ],
     "require": {
         "php": ">=5.5",
+        "prooph/event-store": "dev-develop",
         "doctrine/dbal": "^2.4",
         "beberlei/assert": "^2.0",
-        "prooph/common": "^3.5",
-        "container-interop/container-interop" : "~1.1"
+        "prooph/common": "^3.5"
     },
     "require-dev": {
-        "prooph/event-store": "dev-master",
-        "phpunit/phpunit": "4.7.*",
+        "container-interop/container-interop": "^1.1",
+        "phpunit/phpunit": "4.8.*",
         "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "dev-master"
+    },
+    "suggest": {
+        "container-interop/container-interop": "For usage of provided factories"
     },
     "autoload": {
         "psr-4": {
