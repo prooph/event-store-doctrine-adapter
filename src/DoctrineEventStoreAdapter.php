@@ -8,6 +8,7 @@
  */
 namespace Prooph\EventStore\Adapter\Doctrine;
 
+use DateTimeInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
 use Iterator;
@@ -121,7 +122,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function load(StreamName $streamName, $minVersion = null)
     {
-        $events = $this->loadEventsByMetadataFrom($streamName, [], $minVersion);
+        $events = $this->loadEvents($streamName, [], $minVersion);
 
         return new Stream($streamName, $events);
     }
@@ -132,7 +133,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param null|int $minVersion
      * @return Iterator
      */
-    public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
+    public function loadEvents(StreamName $streamName, array $metadata = [], $minVersion = null)
     {
         $queryBuilder = $this->connection->createQueryBuilder();
 
@@ -148,10 +149,40 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('value'.$key, (string)$value);
         }
 
-        if (!is_null($minVersion)) {
+        if (null !== $minVersion) {
             $queryBuilder
                 ->andWhere('version >= :version')
                 ->setParameter('version', $minVersion);
+        }
+
+        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+    }
+
+    /**
+     * @param StreamName $streamName
+     * @param DateTimeInterface|null $since
+     * @param array $metadata
+     * @return DoctrineStreamIterator
+     */
+    public function replay(StreamName $streamName, DateTimeInterface $since = null, array $metadata = [])
+    {
+        $queryBuilder = $this->connection->createQueryBuilder();
+
+        $table = $this->getTable($streamName);
+
+        $queryBuilder
+            ->select('*')
+            ->from($table, $table)
+            ->orderBy('version', 'ASC');
+
+        foreach ($metadata as $key => $value) {
+            $queryBuilder->andWhere($key . ' = :value'.$key)
+                ->setParameter('value'.$key, (string)$value);
+        }
+
+        if (null !== $since) {
+            $queryBuilder->andWhere('created_at > :createdAt')
+                ->setParameter('createdAt', $since->format('Y-m-d\TH:i:s.u'));
         }
 
         return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
