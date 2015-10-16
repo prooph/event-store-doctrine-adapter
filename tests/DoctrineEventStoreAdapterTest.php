@@ -65,6 +65,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $event->messageName());
         $this->assertEquals('contact@prooph.de', $event->payload()['email']);
         $this->assertEquals(1, $event->version());
+        $this->assertEquals(['tag' => 'person'], $event->metadata());
     }
 
     /**
@@ -88,10 +89,19 @@ class DoctrineEventStoreAdapterTest extends TestCase
         $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
 
         $count = 0;
+        $lastEvent = null;
         foreach ($stream->streamEvents() as $event) {
             $count++;
+            $lastEvent = $event;
         }
         $this->assertEquals(2, $count);
+        $this->assertInstanceOf(UsernameChanged::class, $lastEvent);
+        $messageConverter = new NoOpMessageConverter();
+
+        $streamEventData = $messageConverter->convertToArray($streamEvent);
+        $lastEventData = $messageConverter->convertToArray($lastEvent);
+
+        $this->assertEquals($streamEventData, $lastEventData);
     }
 
     /**
