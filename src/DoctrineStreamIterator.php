@@ -156,14 +156,17 @@ final class DoctrineStreamIterator implements Iterator
      */
     public function rewind()
     {
-        /* @var $stmt \Doctrine\DBAL\Statement */
-        $stmt = $this->queryBuilder->execute();
-        $stmt->setFetchMode(\PDO::FETCH_ASSOC);
+        //Only perform rewind if current item is not the first element
+        if ($this->currentKey !== 0) {
+            /* @var $stmt \Doctrine\DBAL\Statement */
+            $stmt = $this->queryBuilder->execute();
+            $stmt->setFetchMode(\PDO::FETCH_ASSOC);
 
-        $this->currentItem = null;
-        $this->currentKey = -1;
-        $this->statement = $stmt;
+            $this->currentItem = null;
+            $this->currentKey = -1;
+            $this->statement = $stmt;
 
-        $this->next();
+            $this->next();
+        }
     }
 }
