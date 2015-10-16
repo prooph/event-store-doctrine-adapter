@@ -95,6 +95,8 @@ final class DoctrineStreamIterator implements Iterator
 
         $payload = $this->payloadSerializer->unserializePayload($this->currentItem['payload']);
 
+        $metadata = [];
+
         //Add metadata stored in table
         foreach ($this->currentItem as $key => $value) {
             if (! in_array($key, $this->standardColumns)) {
@@ -113,7 +115,7 @@ final class DoctrineStreamIterator implements Iterator
             'version' => (int) $this->currentItem['version'],
             'created_at' => $createdAt,
             'payload' => $payload,
-            'metadata' => $this->metadata
+            'metadata' => $metadata
         ]);
     }
 
