@@ -42,7 +42,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Prooph\\EventStoreTest\\": "vendor/prooph/event-store/tests/"
+            "ProophTest\\EventStore\\Adapter\\Doctrine\\": "tests/",
+            "ProophTest\\EventStore\\": "vendor/prooph/event-store/tests/"
         }
     }
 }

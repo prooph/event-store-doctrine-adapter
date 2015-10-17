@@ -1,18 +1,22 @@
 <?php
 
-namespace Prooph\EventStoreTest\Adapter\Doctrine;
+namespace ProophTest\EventStore\Adapter\Doctrine;
 
 use Doctrine\DBAL\DriverManager;
+use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
 use Prooph\EventStore\Adapter\PayloadSerializer\JsonPayloadSerializer;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
-use Prooph\EventStoreTest\Mock\UserCreated;
-use Prooph\EventStoreTest\Mock\UsernameChanged;
-use Prooph\EventStoreTest\TestCase;
+use ProophTest\EventStore\Mock\UserCreated;
+use ProophTest\EventStore\Mock\UsernameChanged;
 
+/**
+ * Class DoctrineEventStoreAdapterTest
+ * @package ProophTest\EventStore\Adapter\Doctrine
+ */
 class DoctrineEventStoreAdapterTest extends TestCase
 {
     /**
@@ -62,7 +66,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
         $this->assertEquals('contact@prooph.de', $event->payload()['email']);
         $this->assertEquals(1, $event->version());
         $this->assertEquals(['tag' => 'person'], $event->metadata());
@@ -180,7 +184,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
         $this->assertEquals('contact@prooph.de', $event->payload()['email']);
         $this->assertEquals(1, $event->version());
 
@@ -189,7 +193,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
         $this->assertEquals('John Doe', $event->payload()['name']);
         $this->assertEquals(2, $event->version());
     }
@@ -235,7 +239,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
         $this->assertEquals('John Doe', $event->payload()['name']);
         $this->assertEquals(2, $event->version());
     }
