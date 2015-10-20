@@ -80,7 +80,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
 
     /**
      * @test
-     * @expectedException \Prooph\EventStore\Exception\ConfigurationException
+     * @expectedException \Interop\Config\Exception\MandatoryOptionNotFoundException
      */
     public function it_throws_exception_if_adapter_options_are_not_available()
     {
