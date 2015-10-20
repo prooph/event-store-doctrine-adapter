@@ -43,9 +43,7 @@ final class DoctrineEventStoreAdapterFactory
 
         if (isset($adapterOptions['connection_alias']) && $container->has($adapterOptions['connection_alias'])) {
             $connection = $container->get($adapterOptions['connection_alias']);
-        }
-
-        if (null === $connection && isset($adapterOptions['connection']) && is_array($adapterOptions['connection'])) {
+        } elseif (isset($adapterOptions['connection']) && is_array($adapterOptions['connection'])) {
             $connection = DriverManager::getConnection($adapterOptions['connection']);
         }
 
