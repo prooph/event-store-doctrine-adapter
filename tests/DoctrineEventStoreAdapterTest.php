@@ -246,6 +246,56 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
     /**
      * @test
+     */
+    public function it_replays_events_of_two_aggregates_in_a_single_stream_in_correct_order()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            2
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
+
+        sleep(1);
+
+        $secondUserEvent = UserCreated::with(
+            ['name' => 'Jane Doe', 'email' => 'jane@acme.com'],
+            1
+        );
+
+        $secondUserEvent = $secondUserEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$secondUserEvent]));
+
+        $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), null, ['tag' => 'person']);
+
+
+        $replayedPayloads = [];
+        foreach ($streamEvents as $event) {
+            $replayedPayloads[] = $event->payload();
+        }
+
+        $expectedPayloads = [
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
+            ['name' => 'John Doe'],
+            ['name' => 'Jane Doe', 'email' => 'jane@acme.com'],
+        ];
+
+        $this->assertEquals($expectedPayloads, $replayedPayloads);
+    }
+
+    /**
+     * @test
      * @expectedException RuntimeException
      * @expectedExceptionMessage Transaction already started
      */
