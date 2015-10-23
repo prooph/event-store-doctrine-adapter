@@ -174,7 +174,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
             ->select('*')
             ->from($table, $table)
             ->orderBy('created_at', 'ASC')
-            ->orderBy('version', 'ASC');
+            ->addOrderBy('version', 'ASC');
 
         foreach ($metadata as $key => $value) {
             $queryBuilder->andWhere($key . ' = :value'.$key)
