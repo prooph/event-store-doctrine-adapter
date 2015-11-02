@@ -160,7 +160,9 @@ final class EventStoreSchemaTest extends TestCase
         $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_id')->getType());
         $this->assertEquals(36, $table->getColumn('aggregate_id')->getLength());
 
-        $this->assertFalse($table->hasColumn('aggregate_type'));
+        $this->assertTrue($table->hasColumn('aggregate_type'));
+        $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_type')->getType());
+        $this->assertEquals(100, $table->getColumn('aggregate_type')->getLength());
 
         $this->assertFalse($table->hasColumn('causation_id'));
 
