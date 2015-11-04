@@ -1,7 +1,7 @@
 {
     "name": "prooph/event-store-doctrine-adapter",
     "description": "Doctrine Adapter for ProophEventStore",
-    "homepage": "https://github.com/prooph/event-store-doctrine-adapter",
+    "homepage": "http://getprooph.org/",
     "license": "BSD-3-Clause",
     "authors": [
         {
