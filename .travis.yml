@@ -5,15 +5,9 @@ php:
   - 5.6
   - 7
 
-env:
-  - DOCTRINE_VERSION=2.4.* ES_VERSION=dev-develop
-  - DOCTRINE_VERSION=^2.5 ES_VERSION=dev-develop
-
 before_script:
   - composer self-update
-  - composer require doctrine/dbal:${DOCTRINE_VERSION} --dev --prefer-source
-  - composer require prooph/event-store:${ES_VERSION} --dev --prefer-source
-  - composer install --dev --prefer-source
+  - composer update
 
 script:
   - php ./vendor/bin/phpunit --coverage-text --coverage-clover ./build/logs/clover.doctrine-$DOCTRINE_VERSION.xml
