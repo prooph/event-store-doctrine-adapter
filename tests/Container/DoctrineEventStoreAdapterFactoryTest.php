@@ -8,18 +8,22 @@
  *
  * Date: 8/24/15 - 12:09 AM
  */
-namespace Prooph\EventStoreTest\Adapter\Doctrine\Container;
+namespace ProophTest\EventStore\Adapter\Doctrine\Container;
 
 use Doctrine\DBAL\Connection;
 use Interop\Container\ContainerInterface;
+use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Doctrine\Container\DoctrineEventStoreAdapterFactory;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
 use Prooph\EventStore\Adapter\PayloadSerializer;
 use Prooph\EventStore\Stream\StreamName;
-use Prooph\EventStoreTest\TestCase;
 
+/**
+ * Class DoctrineEventStoreAdapterFactoryTest
+ * @package ProophTest\EventStore\Adapter\Doctrine\Container
+ */
 final class DoctrineEventStoreAdapterFactoryTest extends TestCase
 {
     /**
@@ -76,7 +80,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
 
     /**
      * @test
-     * @expectedException \Prooph\EventStore\Exception\ConfigurationException
+     * @expectedException \Interop\Config\Exception\MandatoryOptionNotFoundException
      */
     public function it_throws_exception_if_adapter_options_are_not_available()
     {

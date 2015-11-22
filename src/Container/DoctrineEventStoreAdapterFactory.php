@@ -10,6 +10,10 @@ namespace Prooph\EventStore\Adapter\Doctrine\Container;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Interop\Config\ConfigurationTrait;
+use Interop\Config\ProvidesDefaultOptions;
+use Interop\Config\RequiresConfig;
+use Interop\Config\RequiresMandatoryOptions;
 use Interop\Container\ContainerInterface;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\MessageConverter;
@@ -25,28 +29,58 @@ use Prooph\EventStore\Exception\ConfigurationException;
  * @package Prooph\EventStore\Adapter\Doctrine\Container
  * @author Alexander Miertsch <kontakt@codeliner.ws>
  */
-final class DoctrineEventStoreAdapterFactory
+final class DoctrineEventStoreAdapterFactory implements RequiresConfig, RequiresMandatoryOptions, ProvidesDefaultOptions
 {
+    use ConfigurationTrait;
+
+    /**
+     * @inheritdoc
+     */
+    public function vendorName()
+    {
+        return 'prooph';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function packageName()
+    {
+        return 'event_store';
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function mandatoryOptions()
+    {
+        return ['adapter' => ['options']];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function defaultOptions()
+    {
+        return ['adapter' => ['options' => ['stream_table_map' => []]]];
+    }
+
+    /**
+     * @param ContainerInterface $container
+     * @return DoctrineEventStoreAdapter
+     * @throws \Prooph\EventStore\Exception\ConfigurationException
+     */
     public function __invoke(ContainerInterface $container)
     {
         $config = $container->get('config');
-
-        if (!isset($config['prooph']['event_store']['adapter']['options'])) {
-            throw ConfigurationException::configurationError(
-                'Missing adapter options configuration in prooph event_store configuration'
-            );
-        }
-
-        $adapterOptions = $config['prooph']['event_store']['adapter']['options'];
+        $config = $this->options($config)['adapter']['options'];
 
         $connection = null;
 
-        if (isset($adapterOptions['connection_alias']) && $container->has($adapterOptions['connection_alias'])) {
-            $connection = $container->get($adapterOptions['connection_alias']);
-        }
-
-        if (null === $connection && isset($adapterOptions['connection']) && is_array($adapterOptions['connection'])) {
-            $connection = DriverManager::getConnection($adapterOptions['connection']);
+        if (isset($config['connection_alias']) && $container->has($config['connection_alias'])) {
+            $connection = $container->get($config['connection_alias']);
+        } elseif (isset($config['connection']) && is_array($config['connection'])) {
+            $connection = DriverManager::getConnection($config['connection']);
         }
 
         if (! $connection instanceof Connection) {
@@ -68,10 +102,12 @@ final class DoctrineEventStoreAdapterFactory
             ? $container->get(PayloadSerializer::class)
             : new PayloadSerializer\JsonPayloadSerializer();
 
-        $streamTableMap = isset($adapterOptions['stream_table_map'])
-            ? $adapterOptions['stream_table_map']
-            : [];
-
-        return new DoctrineEventStoreAdapter($connection, $messageFactory, $messageConverter, $payloadSerializer, $streamTableMap);
+        return new DoctrineEventStoreAdapter(
+            $connection,
+            $messageFactory,
+            $messageConverter,
+            $payloadSerializer,
+            $config['stream_table_map']
+        );
     }
 }

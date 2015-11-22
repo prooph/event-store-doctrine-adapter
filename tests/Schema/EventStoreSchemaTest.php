@@ -8,19 +8,19 @@
  *
  * Date: 9/4/15 - 9:17 PM
  */
-namespace Prooph\EventStoreTest\Adapter\Doctrine\Schema;
+namespace ProophTest\EventStore\Adapter\Doctrine\Schema;
 
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Types\IntegerType;
 use Doctrine\DBAL\Types\StringType;
 use Doctrine\DBAL\Types\TextType;
+use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\EventStore\Adapter\Doctrine\Schema\EventStoreSchema;
-use Prooph\EventStoreTest\TestCase;
 
 /**
  * Class EventStoreSchemaTest
  *
- * @package Prooph\EventStoreTest\Adapter\Doctrine\Schema
+ * @package ProophTest\EventStore\Adapter\Doctrine\Schema
  */
 final class EventStoreSchemaTest extends TestCase
 {
@@ -160,7 +160,9 @@ final class EventStoreSchemaTest extends TestCase
         $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_id')->getType());
         $this->assertEquals(36, $table->getColumn('aggregate_id')->getLength());
 
-        $this->assertFalse($table->hasColumn('aggregate_type'));
+        $this->assertTrue($table->hasColumn('aggregate_type'));
+        $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_type')->getType());
+        $this->assertEquals(100, $table->getColumn('aggregate_type')->getLength());
 
         $this->assertFalse($table->hasColumn('causation_id'));
 

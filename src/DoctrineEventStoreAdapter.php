@@ -8,8 +8,10 @@
  */
 namespace Prooph\EventStore\Adapter\Doctrine;
 
+use DateTimeInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Schema\Schema;
+use Iterator;
 use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageDataAssertion;
@@ -56,11 +58,6 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     private $payloadSerializer;
 
     /**
-     * @var array
-     */
-    private $standardColumns = ['event_id', 'event_name', 'created_at', 'payload', 'version'];
-
-    /**
      * @param Connection $dbalConnection
      * @param MessageFactory $messageFactory
      * @param MessageConverter $messageConverter
@@ -88,7 +85,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function create(Stream $stream)
     {
-        if (count($stream->streamEvents()) === 0) {
+        if (!$stream->streamEvents()->valid()) {
             throw new RuntimeException(
                 sprintf(
                     "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
@@ -98,7 +95,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
             );
         }
 
-        $firstEvent = $stream->streamEvents()[0];
+        $firstEvent = $stream->streamEvents()->current();
 
         $this->createSchemaFor($stream->streamName(), $firstEvent->metadata());
 
@@ -107,11 +104,11 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param Message[] $streamEvents
+     * @param Iterator $streamEvents
      * @throws \Prooph\EventStore\Exception\StreamNotFoundException If stream does not exist
      * @return void
      */
-    public function appendTo(StreamName $streamName, array $streamEvents)
+    public function appendTo(StreamName $streamName, Iterator $streamEvents)
     {
         foreach ($streamEvents as $event) {
             $this->insertEvent($streamName, $event);
@@ -125,7 +122,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function load(StreamName $streamName, $minVersion = null)
     {
-        $events = $this->loadEventsByMetadataFrom($streamName, [], $minVersion);
+        $events = $this->loadEvents($streamName, [], $minVersion);
 
         return new Stream($streamName, $events);
     }
@@ -134,9 +131,9 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return Message[]
+     * @return Iterator
      */
-    public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
+    public function loadEvents(StreamName $streamName, array $metadata = [], $minVersion = null)
     {
         $queryBuilder = $this->connection->createQueryBuilder();
 
@@ -152,43 +149,44 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('value'.$key, (string)$value);
         }
 
-        if (!is_null($minVersion)) {
+        if (null !== $minVersion) {
             $queryBuilder
                 ->andWhere('version >= :version')
                 ->setParameter('version', $minVersion);
         }
 
-        /* @var $stmt \Doctrine\DBAL\Statement */
-        $stmt = $queryBuilder->execute();
+        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+    }
 
-        $events = [];
+    /**
+     * @param StreamName $streamName
+     * @param DateTimeInterface|null $since
+     * @param array $metadata
+     * @return DoctrineStreamIterator
+     */
+    public function replay(StreamName $streamName, DateTimeInterface $since = null, array $metadata = [])
+    {
+        $queryBuilder = $this->connection->createQueryBuilder();
 
-        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $eventData) {
-            $payload = $this->payloadSerializer->unserializePayload($eventData['payload']);
+        $table = $this->getTable($streamName);
 
-            //Add metadata stored in table
-            foreach ($eventData as $key => $value) {
-                if (! in_array($key, $this->standardColumns)) {
-                    $metadata[$key] = $value;
-                }
-            }
+        $queryBuilder
+            ->select('*')
+            ->from($table, $table)
+            ->orderBy('created_at', 'ASC')
+            ->addOrderBy('version', 'ASC');
 
-            $createdAt = \DateTimeImmutable::createFromFormat(
-                'Y-m-d\TH:i:s.u',
-                $eventData['created_at'],
-                new \DateTimeZone('UTC')
-            );
-
-            $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
-                'uuid' => $eventData['event_id'],
-                'version' => (int)$eventData['version'],
-                'created_at' => $createdAt,
-                'payload' => $payload,
-                'metadata' => $metadata
-            ]);
+        foreach ($metadata as $key => $value) {
+            $queryBuilder->andWhere($key . ' = :value'.$key)
+                ->setParameter('value'.$key, (string)$value);
         }
 
-        return $events;
+        if (null !== $since) {
+            $queryBuilder->andWhere('created_at > :createdAt')
+                ->setParameter('createdAt', $since->format('Y-m-d\TH:i:s.u'));
+        }
+
+        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
     }
 
     /**
@@ -214,6 +212,11 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         }
     }
 
+    /**
+     * @param Schema $schema
+     * @param string $table
+     * @param array $metadata
+     */
     public static function addToSchema(Schema $schema, $table, array $metadata)
     {
         $table = $schema->createTable($table);
@@ -232,6 +235,9 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         $table->setPrimaryKey(['event_id']);
     }
 
+    /**
+     * Begin transaction
+     */
     public function beginTransaction()
     {
         if (0 != $this->connection->getTransactionNestingLevel()) {
@@ -241,11 +247,17 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         $this->connection->beginTransaction();
     }
 
+    /**
+     * Commit transaction
+     */
     public function commit()
     {
         $this->connection->commit();
     }
 
+    /**
+     * Rollback transaction
+     */
     public function rollback()
     {
         $this->connection->rollBack();

@@ -1,7 +1,7 @@
 {
     "name": "prooph/event-store-doctrine-adapter",
     "description": "Doctrine Adapter for ProophEventStore",
-    "homepage": "https://github.com/prooph/event-store-doctrine-adapter",
+    "homepage": "http://getprooph.org/",
     "license": "BSD-3-Clause",
     "authors": [
         {
@@ -20,17 +20,22 @@
         }
     ],
     "require": {
-        "php": ">=5.5",
-        "doctrine/dbal": "^2.4",
+        "php": "~5.5|~7.0",
+        "prooph/event-store": "^6.0",
+        "doctrine/dbal": "^2.5",
         "beberlei/assert": "^2.0",
-        "prooph/common": "^3.5",
-        "container-interop/container-interop" : "~1.1"
+        "prooph/common": "^3.5"
     },
     "require-dev": {
-        "prooph/event-store": "dev-master",
-        "phpunit/phpunit": "4.7.*",
+        "container-interop/container-interop": "^1.1",
+        "sandrokeil/interop-config": "^0.3",
+        "phpunit/phpunit": "4.8.*",
         "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "dev-master"
+    },
+    "suggest": {
+        "container-interop/container-interop": "For usage of provided factories",
+        "sandrokeil/interop-config": "For usage of provided factories"
     },
     "autoload": {
         "psr-4": {
@@ -39,7 +44,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Prooph\\EventStoreTest\\": "vendor/prooph/event-store/tests/"
+            "ProophTest\\EventStore\\Adapter\\Doctrine\\": "tests/",
+            "ProophTest\\EventStore\\": "vendor/prooph/event-store/tests/"
         }
     }
 }

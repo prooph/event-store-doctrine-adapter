@@ -1,18 +1,22 @@
 <?php
 
-namespace Prooph\EventStoreTest\Adapter\Doctrine;
+namespace ProophTest\EventStore\Adapter\Doctrine;
 
 use Doctrine\DBAL\DriverManager;
+use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
 use Prooph\EventStore\Adapter\PayloadSerializer\JsonPayloadSerializer;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
-use Prooph\EventStoreTest\Mock\UserCreated;
-use Prooph\EventStoreTest\Mock\UsernameChanged;
-use Prooph\EventStoreTest\TestCase;
+use ProophTest\EventStore\Mock\UserCreated;
+use ProophTest\EventStore\Mock\UsernameChanged;
 
+/**
+ * Class DoctrineEventStoreAdapterTest
+ * @package ProophTest\EventStore\Adapter\Doctrine
+ */
 class DoctrineEventStoreAdapterTest extends TestCase
 {
     /**
@@ -48,15 +52,24 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $this->adapter->commit();
 
-        $streamEvents = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        $streamEvents = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
 
-        $this->assertEquals(1, count($streamEvents));
+        $count = 0;
+        foreach ($streamEvents as $event) {
+            $count++;
+        }
+        $this->assertEquals(1, $count);
 
-        $this->assertEquals($testStream->streamEvents()[0]->uuid()->toString(), $streamEvents[0]->uuid()->toString());
-        $this->assertEquals($testStream->streamEvents()[0]->createdAt()->format('Y-m-d\TH:i:s.uO'), $streamEvents[0]->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $streamEvents[0]->messageName());
-        $this->assertEquals('contact@prooph.de', $streamEvents[0]->payload()['email']);
-        $this->assertEquals(1, $streamEvents[0]->version());
+        $testStream->streamEvents()->rewind();
+
+        $testEvent = $testStream->streamEvents()->current();
+
+        $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
+        $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
+        $this->assertEquals('contact@prooph.de', $event->payload()['email']);
+        $this->assertEquals(1, $event->version());
+        $this->assertEquals(['tag' => 'person'], $event->metadata());
     }
 
     /**
@@ -73,12 +86,26 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
-        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent]);
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
 
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'));
 
         $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
-        $this->assertEquals(2, count($stream->streamEvents()));
+
+        $count = 0;
+        $lastEvent = null;
+        foreach ($stream->streamEvents() as $event) {
+            $count++;
+            $lastEvent = $event;
+        }
+        $this->assertEquals(2, $count);
+        $this->assertInstanceOf(UsernameChanged::class, $lastEvent);
+        $messageConverter = new NoOpMessageConverter();
+
+        $streamEventData = $messageConverter->convertToArray($streamEvent);
+        $lastEventData = $messageConverter->convertToArray($lastEvent);
+
+        $this->assertEquals($streamEventData, $lastEventData);
     }
 
     /**
@@ -103,16 +130,169 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $streamEvent2 = $streamEvent2->withAddedMetadata('tag', 'person');
 
-        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent1, $streamEvent2]);
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent1, $streamEvent2]));
 
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'), 2);
 
         $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
-        $this->assertEquals(2, count($stream->streamEvents()));
-        $this->assertEquals('John Doe', $stream->streamEvents()[0]->payload()['name']);
-        $this->assertEquals('Jane Doe', $stream->streamEvents()[1]->payload()['name']);
+
+        $event1 = $stream->streamEvents()->current();
+        $stream->streamEvents()->next();
+        $event2 = $stream->streamEvents()->current();
+        $stream->streamEvents()->next();
+        $this->assertFalse($stream->streamEvents()->valid());
+
+        $this->assertEquals('John Doe', $event1->payload()['name']);
+        $this->assertEquals('Jane Doe', $event2->payload()['name']);
     }
 
+    /**
+     * @test
+     */
+    public function it_replays()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            2
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
+
+        $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), null, ['tag' => 'person']);
+
+        $count = 0;
+        foreach ($streamEvents as $event) {
+            $count++;
+        }
+        $this->assertEquals(2, $count);
+
+        $testStream->streamEvents()->rewind();
+        $streamEvents->rewind();
+
+        $testEvent = $testStream->streamEvents()->current();
+        $event = $streamEvents->current();
+
+        $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
+        $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
+        $this->assertEquals('contact@prooph.de', $event->payload()['email']);
+        $this->assertEquals(1, $event->version());
+
+        $streamEvents->next();
+        $event = $streamEvents->current();
+
+        $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
+        $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('John Doe', $event->payload()['name']);
+        $this->assertEquals(2, $event->version());
+    }
+
+    /**
+     * @test
+     */
+    public function it_replays_from_specific_date()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        sleep(1);
+
+        $since = new \DateTime('now', new \DateTimeZone('UTC'));
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            2
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
+
+        $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), $since, ['tag' => 'person']);
+
+        $count = 0;
+        foreach ($streamEvents as $event) {
+            $count++;
+        }
+        $this->assertEquals(1, $count);
+
+        $testStream->streamEvents()->rewind();
+        $streamEvents->rewind();
+
+        $event = $streamEvents->current();
+
+        $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
+        $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('John Doe', $event->payload()['name']);
+        $this->assertEquals(2, $event->version());
+    }
+
+    /**
+     * @test
+     */
+    public function it_replays_events_of_two_aggregates_in_a_single_stream_in_correct_order()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            2
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
+
+        sleep(1);
+
+        $secondUserEvent = UserCreated::with(
+            ['name' => 'Jane Doe', 'email' => 'jane@acme.com'],
+            1
+        );
+
+        $secondUserEvent = $secondUserEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$secondUserEvent]));
+
+        $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), null, ['tag' => 'person']);
+
+
+        $replayedPayloads = [];
+        foreach ($streamEvents as $event) {
+            $replayedPayloads[] = $event->payload();
+        }
+
+        $expectedPayloads = [
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
+            ['name' => 'John Doe'],
+            ['name' => 'Jane Doe', 'email' => 'jane@acme.com'],
+        ];
+
+        $this->assertEquals($expectedPayloads, $replayedPayloads);
+    }
 
     /**
      * @test
@@ -132,7 +312,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
      */
     public function it_throws_exception_when_empty_stream_created()
     {
-        $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), []));
+        $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), new \ArrayIterator([])));
     }
 
     /**
@@ -186,13 +366,44 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
-        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent]);
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
 
         $this->adapter->rollback();
 
-        $result = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        $result = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
 
-        $this->assertCount(1, $result);
+        $this->assertNotNull($result->current());
+        $this->assertEquals(0, $result->key());
+        $result->next();
+        $this->assertNull($result->current());
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_rewind_doctrine_stream_iterator()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $result = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+
+        $this->assertNotNull($result->current());
+        $this->assertEquals(0, $result->key());
+        $result->next();
+        $this->assertNull($result->current());
+
+        $result->rewind();
+        $this->assertNotNull($result->current());
+        $this->assertEquals(0, $result->key());
+        $result->next();
+        $this->assertNull($result->current());
+        $this->assertFalse($result->key());
     }
 
     /**
@@ -207,6 +418,6 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
-        return new Stream(new StreamName('Prooph\Model\User'), [$streamEvent]);
+        return new Stream(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
     }
 }
