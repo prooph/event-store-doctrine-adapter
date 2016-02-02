@@ -33,19 +33,30 @@ final class EventStoreSchema
     {
         $eventStream = $schema->createTable($streamName);
 
-        $eventStream->addColumn('event_id', 'string', ['length' => 36]);        //UUID of the event
-        $eventStream->addColumn('version', 'integer');                          //Version of the aggregate after event was recorded
-        $eventStream->addColumn('event_name', 'string', ['length' => 100]);     //Name of the event
-        $eventStream->addColumn('payload', 'text');                             //Event payload
-        $eventStream->addColumn('created_at', 'string', ['length' => 50]);      //DateTime ISO8601 + microseconds UTC stored as a string
-        $eventStream->addColumn('aggregate_id', 'string', ['length' => 36]);    //UUID of linked aggregate
-        $eventStream->addColumn('aggregate_type', 'string', ['length' => 100]); //Class of the linked aggregate
+        // UUID4 of the event
+        $eventStream->addColumn('event_id', 'string', ['fixed' => true, 'length' => 36]);
+        // Version of the aggregate after event was recorded
+        $eventStream->addColumn('version', 'integer', ['unsigned' => true]);
+        // Name of the event
+        $eventStream->addColumn('event_name', 'string', ['length' => 100]);
+        // Event payload
+        $eventStream->addColumn('payload', 'text');
+        // DateTime ISO8601 + microseconds UTC stored as a string e.g. 2016-02-02T11:45:39.000000
+        $eventStream->addColumn('created_at', 'string', ['fixed' => true, 'length' => 26]);
+        // UUID4 of linked aggregate
+        $eventStream->addColumn('aggregate_id', 'string', ['fixed' => true, 'length' => 36]);
+        // Class of the linked aggregate
+        $eventStream->addColumn('aggregate_type', 'string', ['length' => 150]);
+
         if ($withCausationColumns) {
-            $eventStream->addColumn('causation_id', 'string', ['length' => 36]);    //UUID of the command which caused the event
-            $eventStream->addColumn('causation_name', 'string', ['length' => 100]); //Name of the command which caused the event
+            // UUID4 of the command which caused the event
+            $eventStream->addColumn('causation_id', 'string', ['fixed' => true, 'length' => 36]);
+            // Name of the command which caused the event
+            $eventStream->addColumn('causation_name', 'string', ['length' => 100]);
         }
         $eventStream->setPrimaryKey(['event_id']);
-        $eventStream->addUniqueIndex(['aggregate_id', 'aggregate_type', 'version'], $streamName . '_m_v_uix'); //Concurrency check on database level
+        // Concurrency check on database level
+        $eventStream->addUniqueIndex(['aggregate_id', 'aggregate_type', 'version'], $streamName . '_m_v_uix');
     }
 
     /**
@@ -59,19 +70,30 @@ final class EventStoreSchema
     {
         $eventStream = $schema->createTable($streamName);
 
-        $eventStream->addColumn('event_id', 'string', ['length' => 36]);        //UUID of the event
-        $eventStream->addColumn('version', 'integer');                          //Version of the aggregate after event was recorded
-        $eventStream->addColumn('event_name', 'string', ['length' => 100]);     //Name of the event
-        $eventStream->addColumn('payload', 'text');                             //Event payload
-        $eventStream->addColumn('created_at', 'string', ['length' => 50]);      //DateTime ISO8601 + microseconds UTC stored as a string
-        $eventStream->addColumn('aggregate_id', 'string', ['length' => 36]);    //UUID of linked aggregate
-        $eventStream->addColumn('aggregate_type', 'string', ['length' => 100]); //Class of the linked aggregate
+        // UUID4 of the event
+        $eventStream->addColumn('event_id', 'string', ['fixed' => true, 'length' => 36]);
+        // Version of the aggregate after event was recorded
+        $eventStream->addColumn('version', 'integer', ['unsigned' => true]);
+        // Name of the event
+        $eventStream->addColumn('event_name', 'string', ['length' => 100]);
+        // Event payload
+        $eventStream->addColumn('payload', 'text');
+        // DateTime ISO8601 + microseconds UTC stored as a string e.g. 2016-02-02T11:45:39.000000
+        $eventStream->addColumn('created_at', 'string', ['fixed' => true, 'length' => 26]);
+        // UUID4 of linked aggregate
+        $eventStream->addColumn('aggregate_id', 'string', ['fixed' => true, 'length' => 36]);
+        // Class of the linked aggregate
+        $eventStream->addColumn('aggregate_type', 'string', ['length' => 150]);
+
         if ($withCausationColumns) {
-            $eventStream->addColumn('causation_id', 'string', ['length' => 36]);    //UUID of the command which caused the event
-            $eventStream->addColumn('causation_name', 'string', ['length' => 100]); //Name of the command which caused the event
+            // UUID4 of the command which caused the event
+            $eventStream->addColumn('causation_id', 'string', ['fixed' => true, 'length' => 36]);
+            // Name of the command which caused the event
+            $eventStream->addColumn('causation_name', 'string', ['length' => 100]);
         }
         $eventStream->setPrimaryKey(['event_id']);
-        $eventStream->addUniqueIndex(['aggregate_id', 'version'], $streamName . '_m_v_uix'); //Concurrency check on database level
+        // Concurrency check on database level
+        $eventStream->addUniqueIndex(['aggregate_id', 'version'], $streamName . '_m_v_uix');
     }
 
     /**

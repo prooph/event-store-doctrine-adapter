@@ -55,7 +55,7 @@ final class EventStoreSchemaTest extends TestCase
 
         $this->assertTrue($table->hasColumn('created_at'));
         $this->assertInstanceOf(StringType::class, $table->getColumn('created_at')->getType());
-        $this->assertEquals(50, $table->getColumn('created_at')->getLength());
+        $this->assertEquals(26, $table->getColumn('created_at')->getLength());
 
         $this->assertTrue($table->hasColumn('aggregate_id'));
         $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_id')->getType());
@@ -63,7 +63,7 @@ final class EventStoreSchemaTest extends TestCase
 
         $this->assertTrue($table->hasColumn('aggregate_type'));
         $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_type')->getType());
-        $this->assertEquals(100, $table->getColumn('aggregate_type')->getLength());
+        $this->assertEquals(150, $table->getColumn('aggregate_type')->getLength());
 
         $this->assertEquals(['event_id'], $table->getPrimaryKey()->getColumns());
 
@@ -154,7 +154,7 @@ final class EventStoreSchemaTest extends TestCase
 
         $this->assertTrue($table->hasColumn('created_at'));
         $this->assertInstanceOf(StringType::class, $table->getColumn('created_at')->getType());
-        $this->assertEquals(50, $table->getColumn('created_at')->getLength());
+        $this->assertEquals(26, $table->getColumn('created_at')->getLength());
 
         $this->assertTrue($table->hasColumn('aggregate_id'));
         $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_id')->getType());
@@ -162,7 +162,7 @@ final class EventStoreSchemaTest extends TestCase
 
         $this->assertTrue($table->hasColumn('aggregate_type'));
         $this->assertInstanceOf(StringType::class, $table->getColumn('aggregate_type')->getType());
-        $this->assertEquals(100, $table->getColumn('aggregate_type')->getLength());
+        $this->assertEquals(150, $table->getColumn('aggregate_type')->getLength());
 
         $this->assertFalse($table->hasColumn('causation_id'));
 

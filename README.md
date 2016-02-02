@@ -14,6 +14,11 @@ The database structure depends on the [stream strategies](https://github.com/pro
 You can find example SQLs for MySql in the [scripts folder](scripts)
 and an [EventStoreSchema tool](src/Schema/EventStoreSchema.php) which you can use an a doctrine migrations scirpt.
 
+> The database schema is only a suggestion. The `aggregate_type` column has a length of 150 chars. If you have very 
+long class names you should increase this length, otherwise it could lead to errors in your application. This length
+should be equal with the `aggregate_type` length in the 
+[snapshot table](https://github.com/prooph/snapshot-doctrine-adapter "Doctrine Adapter for the Snapshot Store").
+
 Requirements
 ------------
 - PHP >= 5.5
