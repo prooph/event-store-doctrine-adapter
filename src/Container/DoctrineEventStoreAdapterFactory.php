@@ -36,17 +36,9 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
     /**
      * @inheritdoc
      */
-    public function vendorName()
+    public function dimensions()
     {
-        return 'prooph';
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function packageName()
-    {
-        return 'event_store';
+        return ['prooph', 'event_store'];
     }
 
     /**
