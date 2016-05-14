@@ -31,7 +31,7 @@
         "sandrokeil/interop-config": "^1.0",
         "phpunit/phpunit": "4.8.*",
         "fabpot/php-cs-fixer": "1.7.*",
-        "satooshi/php-coveralls": "dev-master"
+        "satooshi/php-coveralls": "^1.0"
     },
     "suggest": {
         "container-interop/container-interop": "For usage of provided factories",
