@@ -21,15 +21,15 @@
     ],
     "require": {
         "php": "~5.5|~7.0",
-        "prooph/event-store": "^6.0",
+        "prooph/event-store": "6.2",
         "doctrine/dbal": "^2.5",
         "beberlei/assert": "^2.0",
-        "prooph/common": "^3.5"
+        "prooph/common": "^3.7"
     },
     "require-dev": {
         "container-interop/container-interop": "^1.1",
         "sandrokeil/interop-config": "^1.0",
-        "phpunit/phpunit": "4.8.*",
+        "phpunit/phpunit": "4.8.24",
         "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "^1.0"
     },
