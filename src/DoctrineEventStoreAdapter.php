@@ -117,7 +117,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 $this->insertEvent($streamName, $event);
             }
         } catch (UniqueConstraintViolationException $e) {
-            throw new ConcurrencyException('', 0, $e);
+            throw new ConcurrencyException('At least one event with same version exists already', 0, $e);
         }
     }
 
