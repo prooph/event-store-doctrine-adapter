@@ -56,7 +56,7 @@ final class EventStoreSchema
         }
         $eventStream->setPrimaryKey(['event_id']);
         // Concurrency check on database level
-        $eventStream->addUniqueIndex(['aggregate_id', 'aggregate_type', 'version'], $streamName . '_m_v_uix');
+        $eventStream->addUniqueIndex(['aggregate_id', 'version'], $streamName . '_m_v_uix');
     }
 
     /**

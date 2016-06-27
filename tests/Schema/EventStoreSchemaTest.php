@@ -68,7 +68,7 @@ final class EventStoreSchemaTest extends TestCase
         $this->assertEquals(['event_id'], $table->getPrimaryKey()->getColumns());
 
         $this->assertTrue($table->hasIndex('event_stream_m_v_uix'));
-        $this->assertEquals(['aggregate_id', 'aggregate_type', 'version'], $table->getIndex('event_stream_m_v_uix')->getColumns());
+        $this->assertEquals(['aggregate_id', 'version'], $table->getIndex('event_stream_m_v_uix')->getColumns());
     }
 
     /**
@@ -85,7 +85,7 @@ final class EventStoreSchemaTest extends TestCase
         $this->assertEquals('custom_stream', $table->getName());
 
         $this->assertTrue($table->hasIndex('custom_stream_m_v_uix'));
-        $this->assertEquals(['aggregate_id', 'aggregate_type', 'version'], $table->getIndex('custom_stream_m_v_uix')->getColumns());
+        $this->assertEquals(['aggregate_id', 'version'], $table->getIndex('custom_stream_m_v_uix')->getColumns());
     }
 
     /**
