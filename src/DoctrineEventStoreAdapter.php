@@ -10,6 +10,7 @@ namespace Prooph\EventStore\Adapter\Doctrine;
 
 use DateTimeInterface;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Schema\Schema;
 use Iterator;
 use Prooph\Common\Messaging\Message;
@@ -19,6 +20,7 @@ use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
 use Prooph\EventStore\Adapter\PayloadSerializer;
+use Prooph\EventStore\Exception\ConcurrencyException;
 use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
@@ -110,8 +112,12 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function appendTo(StreamName $streamName, Iterator $streamEvents)
     {
-        foreach ($streamEvents as $event) {
-            $this->insertEvent($streamName, $event);
+        try {
+            foreach ($streamEvents as $event) {
+                $this->insertEvent($streamName, $event);
+            }
+        } catch (UniqueConstraintViolationException $e) {
+            throw new ConcurrencyException('', 0, $e);
         }
     }
 
@@ -230,6 +236,10 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
 
         foreach ($metadata as $key => $value) {
             $table->addColumn($key, 'string', ['length' => 100]);
+        }
+
+        if ($table->hasColumn('aggregate_id')) {
+            $table->addUniqueIndex(['aggregate_id', 'version']);
         }
 
         $table->setPrimaryKey(['event_id']);

@@ -407,6 +407,33 @@ class DoctrineEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     * @expectedException \Prooph\EventStore\Exception\ConcurrencyException
+     */
+    public function it_fails_to_write_with_duplicate_aggregate_id_and_version()
+    {
+        $streamEvent = UserCreated::with(
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
+            1
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('aggregate_id', 'one');
+        $streamEvent = $streamEvent->withAddedMetadata('aggregate_type', 'user');
+
+        $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent])));
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            1
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('aggregate_id', 'one');
+        $streamEvent = $streamEvent->withAddedMetadata('aggregate_type', 'user');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()
