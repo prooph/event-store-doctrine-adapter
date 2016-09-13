@@ -125,7 +125,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
         $streamEvent2 = UsernameChanged::with(
             ['name' => 'Jane Doe'],
-            2
+            3
         );
 
         $streamEvent2 = $streamEvent2->withAddedMetadata('tag', 'person');
