@@ -79,9 +79,6 @@ final class DoctrineStreamIterator implements Iterator
         $this->rewind();
     }
 
-    /**
-     * @return null|Message
-     */
     public function current(): ?Message
     {
         if (false === $this->currentItem) {

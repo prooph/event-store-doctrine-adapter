@@ -82,7 +82,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function create(Stream $stream): void
     {
-        if (!$stream->streamEvents()->valid()) {
+        if (! $stream->streamEvents()->valid()) {
             throw new RuntimeException(
                 sprintf(
                     "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
