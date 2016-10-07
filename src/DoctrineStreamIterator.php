@@ -24,7 +24,7 @@ use Prooph\EventStore\Adapter\PayloadSerializer;
  */
 final class DoctrineStreamIterator implements Iterator
 {
-    private const BATCH_SIZE = 100;
+    const BATCH_SIZE = 100;
 
     /**
      * @var QueryBuilder
