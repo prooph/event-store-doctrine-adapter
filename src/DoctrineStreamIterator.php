@@ -65,12 +65,6 @@ final class DoctrineStreamIterator implements Iterator
      */
     private $currentKey;
 
-    /**
-     * @param QueryBuilder $queryBuilder
-     * @param MessageFactory $messageFactory
-     * @param PayloadSerializer $payloadSerializer
-     * @param array $metadata
-     */
     public function __construct(
         QueryBuilder $queryBuilder,
         MessageFactory $messageFactory,
@@ -88,10 +82,10 @@ final class DoctrineStreamIterator implements Iterator
     /**
      * @return null|Message
      */
-    public function current()
+    public function current(): ?Message
     {
         if (false === $this->currentItem) {
-            return;
+            return null;
         }
 
         $payload = $this->payloadSerializer->unserializePayload($this->currentItem['payload']);
@@ -120,10 +114,7 @@ final class DoctrineStreamIterator implements Iterator
         ]);
     }
 
-    /**
-     * Next
-     */
-    public function next()
+    public function next(): void
     {
         $this->currentItem = $this->statement->fetch();
 
@@ -146,18 +137,12 @@ final class DoctrineStreamIterator implements Iterator
         return $this->currentKey;
     }
 
-    /**
-     * @return bool
-     */
-    public function valid()
+    public function valid(): bool
     {
         return false !== $this->currentItem;
     }
 
-    /**
-     * Rewind
-     */
-    public function rewind()
+    public function rewind(): void
     {
         //Only perform rewind if current item is not the first element
         if ($this->currentKey !== 0) {

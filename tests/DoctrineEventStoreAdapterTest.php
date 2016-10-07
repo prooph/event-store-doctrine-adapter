@@ -334,7 +334,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
      */
     public function it_can_return_sql_string_for_schema_creation(): void
     {
-        $sqls = $this->adapter->createSchemaFor(new StreamName('Prooph\Model\User'), [], true);
+        $sqls = $this->adapter->getSqlSchemaFor(new StreamName('Prooph\Model\User'), []);
 
         $this->assertInternalType('array', $sqls);
         $this->assertArrayHasKey(0, $sqls);

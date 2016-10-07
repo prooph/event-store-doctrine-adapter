@@ -62,11 +62,9 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
     }
 
     /**
-     * @param ContainerInterface $container
-     * @return DoctrineEventStoreAdapter
-     * @throws \Prooph\EventStore\Exception\ConfigurationException
+     * @throws ConfigurationException
      */
-    public function __invoke(ContainerInterface $container)
+    public function __invoke(ContainerInterface $container): DoctrineEventStoreAdapter
     {
         $config = $container->get('config');
         $config = $this->options($config)['adapter']['options'];

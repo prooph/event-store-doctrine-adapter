@@ -26,13 +26,12 @@ final class EventStoreSchema
 {
     /**
      * Use this method when you work with a single stream strategy
-     *
-     * @param Schema $schema
-     * @param string $streamName Defaults to 'event_stream'
-     * @param bool $withCausationColumns Enable causation columns when using prooph/event-store-bus-bridge
      */
-    public static function createSingleStream(Schema $schema, $streamName = 'event_stream', $withCausationColumns = false)
-    {
+    public static function createSingleStream(
+        Schema $schema,
+        string $streamName = 'event_stream',
+        bool $withCausationColumns = false
+    ): void {
         $eventStream = $schema->createTable($streamName);
 
         // UUID4 of the event
@@ -63,13 +62,12 @@ final class EventStoreSchema
 
     /**
      * Use this method when you work with an aggregate type stream strategy
-     *
-     * @param Schema $schema
-     * @param string $streamName [shortclassname]_stream
-     * @param bool $withCausationColumns Enable causation columns when using prooph/event-store-bus-bridge
      */
-    public static function createAggregateTypeStream(Schema $schema, $streamName, $withCausationColumns = false)
-    {
+    public static function createAggregateTypeStream(
+        Schema $schema,
+        string $streamName,
+        bool $withCausationColumns = false
+    ): void {
         $eventStream = $schema->createTable($streamName);
 
         // UUID4 of the event
@@ -98,13 +96,7 @@ final class EventStoreSchema
         $eventStream->addUniqueIndex(['aggregate_id', 'version'], $streamName . '_m_v_uix');
     }
 
-    /**
-     * Drop a stream schema
-     *
-     * @param Schema $schema
-     * @param string $streamName Defaults to 'event_stream'
-     */
-    public static function dropStream(Schema $schema, $streamName = 'event_stream')
+    public static function dropStream(Schema $schema, string $streamName = 'event_stream'): void
     {
         $schema->dropTable($streamName);
     }
