@@ -25,6 +25,8 @@ use Prooph\EventStore\Adapter\PayloadSerializer;
  */
 final class DoctrineStreamIterator implements Iterator
 {
+    private const BATCH_SIZE = 100;
+
     /**
      * @var QueryBuilder
      */
@@ -64,6 +66,11 @@ final class DoctrineStreamIterator implements Iterator
      * @var int
      */
     private $currentKey;
+
+    /**
+     * @var int
+     */
+    private $batchPosition = 0;
 
     public function __construct(
         QueryBuilder $queryBuilder,
@@ -118,7 +125,18 @@ final class DoctrineStreamIterator implements Iterator
         if (false !== $this->currentItem) {
             $this->currentKey++;
         } else {
-            $this->currentKey = -1;
+            $this->batchPosition++;
+            $this->queryBuilder->setFirstResult(self::BATCH_SIZE * $this->batchPosition);
+            $this->queryBuilder->setMaxResults(self::BATCH_SIZE);
+            /* @var $stmt \Doctrine\DBAL\Statement */
+            $this->statement = $this->queryBuilder->execute();
+            $this->statement->setFetchMode(\PDO::FETCH_ASSOC);
+
+            $this->currentItem = $this->statement->fetch();
+
+            if (false === $this->currentItem) {
+                $this->currentKey = -1;
+            }
         }
     }
 
@@ -143,6 +161,10 @@ final class DoctrineStreamIterator implements Iterator
     {
         //Only perform rewind if current item is not the first element
         if ($this->currentKey !== 0) {
+            $this->batchPosition = 0;
+            $this->queryBuilder->setFirstResult(0);
+            $this->queryBuilder->setMaxResults(self::BATCH_SIZE);
+
             /* @var $stmt \Doctrine\DBAL\Statement */
             $stmt = $this->queryBuilder->execute();
             $stmt->setFetchMode(\PDO::FETCH_ASSOC);

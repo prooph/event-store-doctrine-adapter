@@ -449,6 +449,37 @@ class DoctrineEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function it_replays_larger_streams_in_chunks(): void
+    {
+        $streamName = new StreamName('Prooph\Model\User');
+
+        $streamEvents = [];
+
+        for ($i = 1; $i <= 150; $i++) {
+            $streamEvents[] = UserCreated::with(
+                ['name' => 'Max Mustermann ' . $i, 'email' => 'contact_' . $i . '@prooph.de'],
+                $i
+            );
+        }
+
+        $this->adapter->create(new Stream($streamName, new \ArrayIterator($streamEvents)));
+
+        $replay = $this->adapter->replay($streamName);
+
+        $count = 0;
+        foreach ($replay as $event) {
+            $count++;
+            $this->assertEquals('Max Mustermann ' . $count, $event->payload()['name']);
+            $this->assertEquals('contact_' . $count . '@prooph.de', $event->payload()['email']);
+            $this->assertEquals($count, $event->version());
+        }
+
+        $this->assertEquals(150, $count);
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream(): Stream
