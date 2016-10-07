@@ -31,7 +31,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
     /**
      * @test
      */
-    public function it_creates_an_adapter_using_configured_connection_alias()
+    public function it_creates_an_adapter_using_configured_connection_alias(): void
     {
         $connection = $this->prophesize(Connection::class);
 
@@ -57,7 +57,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
     /**
      * @test
      */
-    public function it_creates_an_adapter_using_configured_connection_options()
+    public function it_creates_an_adapter_using_configured_connection_options(): void
     {
         $config['prooph']['event_store']['adapter']['options']['connection'] = [
             'driver' => 'pdo_sqlite',
@@ -84,7 +84,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
      * @test
      * @expectedException \Interop\Config\Exception\MandatoryOptionNotFoundException
      */
-    public function it_throws_exception_if_adapter_options_are_not_available()
+    public function it_throws_exception_if_adapter_options_are_not_available(): void
     {
         $config['prooph']['event_store']['adapter'] = [];
 
@@ -101,7 +101,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
      * @test
      * @expectedException \Prooph\EventStore\Exception\ConfigurationException
      */
-    public function it_throws_exception_if_adapter_connection_could_neither_be_located_nor_created()
+    public function it_throws_exception_if_adapter_connection_could_neither_be_located_nor_created(): void
     {
         $config['prooph']['event_store']['adapter']['options'] = [];
 
@@ -117,7 +117,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
     /**
      * @test
      */
-    public function it_injects_helpers_from_container_if_available()
+    public function it_injects_helpers_from_container_if_available(): void
     {
         $messageFactory = $this->prophesize(MessageFactory::class);
         $messageConverter = $this->prophesize(MessageConverter::class);
@@ -152,7 +152,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
     /**
      * @test
      */
-    public function it_injects_stream_table_map_from_config()
+    public function it_injects_stream_table_map_from_config(): void
     {
         $connection = $this->prophesize(Connection::class);
 
