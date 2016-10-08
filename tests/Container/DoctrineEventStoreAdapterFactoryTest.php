@@ -35,7 +35,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
     {
         $connection = $this->prophesize(Connection::class);
 
-        $config['prooph']['event_store']['adapter']['options']['connection_alias'] = 'app_dbal_connection';
+        $config['prooph']['event_store']['default']['adapter']['options']['connection_alias'] = 'app_dbal_connection';
 
         $container = $this->prophesize(ContainerInterface::class);
 
@@ -59,7 +59,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
      */
     public function it_creates_an_adapter_using_configured_connection_options(): void
     {
-        $config['prooph']['event_store']['adapter']['options']['connection'] = [
+        $config['prooph']['event_store']['default']['adapter']['options']['connection'] = [
             'driver' => 'pdo_sqlite',
             'dbname' => ':memory:'
         ];
@@ -86,7 +86,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
      */
     public function it_throws_exception_if_adapter_options_are_not_available(): void
     {
-        $config['prooph']['event_store']['adapter'] = [];
+        $config['prooph']['event_store']['default']['adapter'] = [];
 
         $container = $this->prophesize(ContainerInterface::class);
 
@@ -103,7 +103,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
      */
     public function it_throws_exception_if_adapter_connection_could_neither_be_located_nor_created(): void
     {
-        $config['prooph']['event_store']['adapter']['options'] = [];
+        $config['prooph']['event_store']['default']['adapter']['options'] = [];
 
         $container = $this->prophesize(ContainerInterface::class);
 
@@ -125,7 +125,7 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
 
         $connection = $this->prophesize(Connection::class);
 
-        $config['prooph']['event_store']['adapter']['options']['connection_alias'] = 'app_dbal_connection';
+        $config['prooph']['event_store']['default']['adapter']['options']['connection_alias'] = 'app_dbal_connection';
 
         $container = $this->prophesize(ContainerInterface::class);
 
@@ -156,8 +156,8 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
     {
         $connection = $this->prophesize(Connection::class);
 
-        $config['prooph']['event_store']['adapter']['options']['connection_alias'] = 'app_dbal_connection';
-        $config['prooph']['event_store']['adapter']['options']['stream_table_map'] = ['A\Stream' => 'to_table'];
+        $config['prooph']['event_store']['default']['adapter']['options']['connection_alias'] = 'app_dbal_connection';
+        $config['prooph']['event_store']['default']['adapter']['options']['stream_table_map'] = ['A\Stream' => 'to_table'];
 
         $container = $this->prophesize(ContainerInterface::class);
 

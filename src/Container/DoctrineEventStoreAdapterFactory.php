@@ -17,6 +17,7 @@ use Doctrine\DBAL\DriverManager;
 use Interop\Config\ConfigurationTrait;
 use Interop\Config\ProvidesDefaultOptions;
 use Interop\Config\RequiresConfig;
+use Interop\Config\RequiresConfigId;
 use Interop\Config\RequiresMandatoryOptions;
 use Interop\Container\ContainerInterface;
 use Prooph\Common\Messaging\FQCNMessageFactory;
@@ -24,6 +25,7 @@ use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
+use Prooph\EventStore\Adapter\Exception\InvalidArgumentException;
 use Prooph\EventStore\Adapter\PayloadSerializer;
 use Prooph\EventStore\Exception\ConfigurationException;
 
@@ -33,32 +35,47 @@ use Prooph\EventStore\Exception\ConfigurationException;
  * @package Prooph\EventStore\Adapter\Doctrine\Container
  * @author Alexander Miertsch <kontakt@codeliner.ws>
  */
-final class DoctrineEventStoreAdapterFactory implements RequiresConfig, RequiresMandatoryOptions, ProvidesDefaultOptions
+final class DoctrineEventStoreAdapterFactory implements
+    ProvidesDefaultOptions,
+    RequiresConfig,
+    RequiresConfigId,
+    RequiresMandatoryOptions
 {
     use ConfigurationTrait;
 
     /**
-     * @inheritdoc
+     * @var string
      */
-    public function dimensions()
-    {
-        return ['prooph', 'event_store'];
-    }
+    private $configId;
 
     /**
-     * @inheritdoc
+     * Creates a new instance from a specified config, specifically meant to be used as static factory.
+     *
+     * In case you want to use another config key than provided by the factories, you can add the following factory to
+     * your config:
+     *
+     * <code>
+     * <?php
+     * return [
+     *     'prooph.event_store.service_name.adapter' => [DoctrineEventStoreAdapterFactory::class, 'service_name'],
+     * ];
+     * </code>
+     *
+     * @throws InvalidArgumentException
      */
-    public function mandatoryOptions()
+    public static function __callStatic(string $name, array $arguments): DoctrineEventStoreAdapter
     {
-        return ['adapter' => ['options']];
+        if (! isset($arguments[0]) || ! $arguments[0] instanceof ContainerInterface) {
+            throw new InvalidArgumentException(
+                sprintf('The first argument must be of type %s', ContainerInterface::class)
+            );
+        }
+        return (new static($name))->__invoke($arguments[0]);
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function defaultOptions()
+    public function __construct(string $configId = 'default')
     {
-        return ['adapter' => ['options' => ['stream_table_map' => []]]];
+        $this->configId = $configId;
     }
 
     /**
@@ -67,7 +84,7 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
     public function __invoke(ContainerInterface $container): DoctrineEventStoreAdapter
     {
         $config = $container->get('config');
-        $config = $this->options($config)['adapter']['options'];
+        $config = $this->options($config, $this->configId)['adapter']['options'];
 
         $connection = null;
 
@@ -103,5 +120,29 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
             $payloadSerializer,
             $config['stream_table_map']
         );
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function dimensions()
+    {
+        return ['prooph', 'event_store'];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function mandatoryOptions()
+    {
+        return ['adapter' => ['options']];
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function defaultOptions()
+    {
+        return ['adapter' => ['options' => ['stream_table_map' => []]]];
     }
 }
