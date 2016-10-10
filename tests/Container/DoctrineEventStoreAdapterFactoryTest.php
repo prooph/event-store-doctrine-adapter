@@ -19,6 +19,7 @@ use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Doctrine\Container\DoctrineEventStoreAdapterFactory;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
+use Prooph\EventStore\Adapter\Exception\ConfigurationException;
 use Prooph\EventStore\Adapter\PayloadSerializer;
 use Prooph\EventStore\Stream\StreamName;
 
@@ -82,27 +83,11 @@ final class DoctrineEventStoreAdapterFactoryTest extends TestCase
 
     /**
      * @test
-     * @expectedException \Interop\Config\Exception\MandatoryOptionNotFoundException
-     */
-    public function it_throws_exception_if_adapter_options_are_not_available(): void
-    {
-        $config['prooph']['event_store']['default']['adapter'] = [];
-
-        $container = $this->prophesize(ContainerInterface::class);
-
-        $container->has('config')->willReturn(true);
-        $container->get('config')->willReturn($config);
-
-        $factory = new DoctrineEventStoreAdapterFactory();
-        $factory($container->reveal());
-    }
-
-    /**
-     * @test
-     * @expectedException \Prooph\EventStore\Exception\ConfigurationException
      */
     public function it_throws_exception_if_adapter_connection_could_neither_be_located_nor_created(): void
     {
+        $this->expectException(ConfigurationException::class);
+
         $config['prooph']['event_store']['default']['adapter']['options'] = [];
 
         $container = $this->prophesize(ContainerInterface::class);

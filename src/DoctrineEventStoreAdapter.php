@@ -63,18 +63,25 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     private $payloadSerializer;
 
+    /**
+     * @var int
+     */
+    private $loadBatchSize;
+
     public function __construct(
         Connection $dbalConnection,
         MessageFactory $messageFactory,
         MessageConverter $messageConverter,
         PayloadSerializer $payloadSerializer,
-        array $streamTableMap = [])
-    {
+        array $streamTableMap = [],
+        int $loadBatchSize = 10000
+    ) {
         $this->connection = $dbalConnection;
         $this->messageFactory = $messageFactory;
         $this->messageConverter = $messageConverter;
         $this->payloadSerializer = $payloadSerializer;
         $this->streamTableMap = $streamTableMap;
+        $this->loadBatchSize = $loadBatchSize;
     }
 
     /**
@@ -142,7 +149,13 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('version', $minVersion);
         }
 
-        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+        return new DoctrineStreamIterator(
+            $queryBuilder,
+            $this->messageFactory,
+            $this->payloadSerializer,
+            $metadata,
+            $this->loadBatchSize
+        );
     }
 
     public function replay(StreamName $streamName, DateTimeInterface $since = null, array $metadata = []): Iterator
@@ -167,7 +180,13 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('createdAt', $since->format('Y-m-d\TH:i:s.u'));
         }
 
-        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+        return new DoctrineStreamIterator(
+            $queryBuilder,
+            $this->messageFactory,
+            $this->payloadSerializer,
+            $metadata,
+            $this->loadBatchSize
+        );
     }
 
     public function createSchemaFor(StreamName $streamName, array $metadata): void

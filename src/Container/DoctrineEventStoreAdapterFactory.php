@@ -18,16 +18,15 @@ use Interop\Config\ConfigurationTrait;
 use Interop\Config\ProvidesDefaultOptions;
 use Interop\Config\RequiresConfig;
 use Interop\Config\RequiresConfigId;
-use Interop\Config\RequiresMandatoryOptions;
 use Interop\Container\ContainerInterface;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
+use Prooph\EventStore\Adapter\Exception\ConfigurationException;
 use Prooph\EventStore\Adapter\Exception\InvalidArgumentException;
 use Prooph\EventStore\Adapter\PayloadSerializer;
-use Prooph\EventStore\Exception\ConfigurationException;
 
 /**
  * Class DoctrineEventStoreAdapterFactory
@@ -38,8 +37,7 @@ use Prooph\EventStore\Exception\ConfigurationException;
 final class DoctrineEventStoreAdapterFactory implements
     ProvidesDefaultOptions,
     RequiresConfig,
-    RequiresConfigId,
-    RequiresMandatoryOptions
+    RequiresConfigId
 {
     use ConfigurationTrait;
 
@@ -95,7 +93,7 @@ final class DoctrineEventStoreAdapterFactory implements
         }
 
         if (! $connection instanceof Connection) {
-            throw ConfigurationException::configurationError(sprintf(
+            throw new ConfigurationException(sprintf(
                 '%s was not able to locate or create a valid Doctrine\DBAL\Connection',
                 __CLASS__
             ));
@@ -118,31 +116,25 @@ final class DoctrineEventStoreAdapterFactory implements
             $messageFactory,
             $messageConverter,
             $payloadSerializer,
-            $config['stream_table_map']
+            $config['stream_table_map'],
+            $config['load_batch_size']
         );
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function dimensions()
+    public function dimensions(): array
     {
         return ['prooph', 'event_store'];
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function mandatoryOptions()
+    public function defaultOptions(): array
     {
-        return ['adapter' => ['options']];
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function defaultOptions()
-    {
-        return ['adapter' => ['options' => ['stream_table_map' => []]]];
+        return [
+            'adapter' => [
+                'options' => [
+                    'stream_table_map' => [],
+                    'load_batch_size' => 10000,
+                ],
+            ],
+        ];
     }
 }
