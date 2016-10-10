@@ -54,7 +54,14 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
      */
     public function defaultOptions()
     {
-        return ['adapter' => ['options' => ['stream_table_map' => []]]];
+        return [
+            'adapter' => [
+                'options' => [
+                    'stream_table_map' => [],
+                    'load_batch_size' => 10000,
+                ],
+            ],
+        ];
     }
 
     /**
