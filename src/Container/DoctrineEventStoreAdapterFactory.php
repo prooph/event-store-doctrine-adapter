@@ -99,7 +99,8 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
             $messageFactory,
             $messageConverter,
             $payloadSerializer,
-            $config['stream_table_map']
+            $config['stream_table_map'],
+            $config['load_batch_size']
         );
     }
 }

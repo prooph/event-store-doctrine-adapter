@@ -11,6 +11,7 @@
 
 namespace Prooph\EventStore\Adapter\Doctrine;
 
+use Assert\Assertion;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Iterator;
 use Doctrine\DBAL\Driver\PDOStatement;
@@ -24,8 +25,6 @@ use Prooph\EventStore\Adapter\PayloadSerializer;
  */
 final class DoctrineStreamIterator implements Iterator
 {
-    const BATCH_SIZE = 100;
-
     /**
      * @var QueryBuilder
      */
@@ -71,22 +70,29 @@ final class DoctrineStreamIterator implements Iterator
      */
     private $batchPosition = 0;
 
+    private $batchSize;
+
     /**
      * @param QueryBuilder $queryBuilder
      * @param MessageFactory $messageFactory
      * @param PayloadSerializer $payloadSerializer
      * @param array $metadata
+     * @param int $batchSize
      */
     public function __construct(
         QueryBuilder $queryBuilder,
         MessageFactory $messageFactory,
         PayloadSerializer $payloadSerializer,
-        array $metadata
+        array $metadata,
+        $batchSize = 10000
     ) {
+        Assertion::integer($batchSize);
+
         $this->queryBuilder = $queryBuilder;
         $this->messageFactory = $messageFactory;
         $this->payloadSerializer = $payloadSerializer;
         $this->metadata = $metadata;
+        $this->batchSize = $batchSize;
 
         $this->rewind();
     }
@@ -137,8 +143,8 @@ final class DoctrineStreamIterator implements Iterator
             $this->currentKey++;
         } else {
             $this->batchPosition++;
-            $this->queryBuilder->setFirstResult(self::BATCH_SIZE * $this->batchPosition);
-            $this->queryBuilder->setMaxResults(self::BATCH_SIZE);
+            $this->queryBuilder->setFirstResult($this->batchSize * $this->batchPosition);
+            $this->queryBuilder->setMaxResults($this->batchSize);
             /* @var $stmt \Doctrine\DBAL\Statement */
             $this->statement = $this->queryBuilder->execute();
             $this->statement->setFetchMode(\PDO::FETCH_ASSOC);
@@ -180,7 +186,7 @@ final class DoctrineStreamIterator implements Iterator
         if ($this->currentKey !== 0) {
             $this->batchPosition = 0;
             $this->queryBuilder->setFirstResult(0);
-            $this->queryBuilder->setMaxResults(self::BATCH_SIZE);
+            $this->queryBuilder->setMaxResults($this->batchSize);
 
             /* @var $stmt \Doctrine\DBAL\Statement */
             $stmt = $this->queryBuilder->execute();
