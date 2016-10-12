@@ -8,6 +8,7 @@
  */
 namespace Prooph\EventStore\Adapter\Doctrine;
 
+use Assert\Assertion;
 use DateTimeInterface;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -60,24 +61,34 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     private $payloadSerializer;
 
     /**
+     * @var int
+     */
+    private $loadBatchSize;
+
+    /**
      * @param Connection $dbalConnection
      * @param MessageFactory $messageFactory
      * @param MessageConverter $messageConverter
      * @param PayloadSerializer $payloadSerializer
      * @param array $streamTableMap
+     * @param int $loadBatchSize
      */
     public function __construct(
         Connection $dbalConnection,
         MessageFactory $messageFactory,
         MessageConverter $messageConverter,
         PayloadSerializer $payloadSerializer,
-        array $streamTableMap = [])
-    {
+        array $streamTableMap = [],
+        $loadBatchSize = 10000
+    ) {
+        Assertion::integer($loadBatchSize);
+
         $this->connection = $dbalConnection;
         $this->messageFactory = $messageFactory;
         $this->messageConverter = $messageConverter;
         $this->payloadSerializer = $payloadSerializer;
         $this->streamTableMap = $streamTableMap;
+        $this->loadBatchSize = $loadBatchSize;
     }
 
     /**
@@ -161,7 +172,13 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('version', $minVersion);
         }
 
-        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+        return new DoctrineStreamIterator(
+            $queryBuilder,
+            $this->messageFactory,
+            $this->payloadSerializer,
+            $metadata,
+            $this->loadBatchSize
+        );
     }
 
     /**
@@ -192,7 +209,13 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('createdAt', $since->format('Y-m-d\TH:i:s.u'));
         }
 
-        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+        return new DoctrineStreamIterator(
+            $queryBuilder,
+            $this->messageFactory,
+            $this->payloadSerializer,
+            $metadata,
+            $this->loadBatchSize
+        );
     }
 
     /**

@@ -54,7 +54,14 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
      */
     public function defaultOptions()
     {
-        return ['adapter' => ['options' => ['stream_table_map' => []]]];
+        return [
+            'adapter' => [
+                'options' => [
+                    'stream_table_map' => [],
+                    'load_batch_size' => 10000,
+                ],
+            ],
+        ];
     }
 
     /**
@@ -99,7 +106,8 @@ final class DoctrineEventStoreAdapterFactory implements RequiresConfig, Requires
             $messageFactory,
             $messageConverter,
             $payloadSerializer,
-            $config['stream_table_map']
+            $config['stream_table_map'],
+            $config['load_batch_size']
         );
     }
 }
