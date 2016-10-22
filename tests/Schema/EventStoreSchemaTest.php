@@ -1,13 +1,15 @@
 <?php
-/*
+/**
  * This file is part of the prooph/event-store-doctrine-adapter.
- * (c) 2014-2015 prooph software GmbH <contact@prooph.de>
+ * (c) 2014-2016 prooph software GmbH <contact@prooph.de>
+ * (c) 2015-2016 Sascha-Oliver Prolic <saschaprolic@googlemail.com>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
- *
- * Date: 9/4/15 - 9:17 PM
  */
+
+declare(strict_types=1);
+
 namespace ProophTest\EventStore\Adapter\Doctrine\Schema;
 
 use Doctrine\DBAL\Schema\Schema;
@@ -27,7 +29,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_creates_a_single_stream_schema_correctly()
+    public function it_creates_a_single_stream_schema_correctly(): void
     {
         $schemaTool = new Schema();
 
@@ -74,7 +76,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_creates_a_single_stream_schema_with_custom_name_correctly()
+    public function it_creates_a_single_stream_schema_with_custom_name_correctly(): void
     {
         $schemaTool = new Schema();
 
@@ -91,7 +93,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_does_not_include_causation_columns_by_default()
+    public function it_does_not_include_causation_columns_by_default(): void
     {
         $schemaTool = new Schema();
 
@@ -106,7 +108,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_does_add_causation_columns_to_single_stream_when_feature_is_enabled()
+    public function it_does_add_causation_columns_to_single_stream_when_feature_is_enabled(): void
     {
         $schemaTool = new Schema();
 
@@ -126,7 +128,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_creates_a_aggregate_type_stream_schema_correctly()
+    public function it_creates_a_aggregate_type_stream_schema_correctly(): void
     {
         $schemaTool = new Schema();
 
@@ -177,7 +179,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_does_add_causation_columns_to_aggregate_type_stream_when_feature_is_enabled()
+    public function it_does_add_causation_columns_to_aggregate_type_stream_when_feature_is_enabled(): void
     {
         $schemaTool = new Schema();
 
@@ -197,7 +199,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_drops_event_stream_by_default()
+    public function it_drops_event_stream_by_default(): void
     {
         $schemaTool = new Schema();
 
@@ -211,7 +213,7 @@ final class EventStoreSchemaTest extends TestCase
     /**
      * @test
      */
-    public function it_drops_custom_stream()
+    public function it_drops_custom_stream(): void
     {
         $schemaTool = new Schema();
 

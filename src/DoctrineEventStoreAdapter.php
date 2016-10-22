@@ -1,11 +1,15 @@
 <?php
-/*
+/**
  * This file is part of the prooph/event-store-doctrine-adapter.
- * (c) 2014-2015 prooph software GmbH <contact@prooph.de>
+ * (c) 2014-2016 prooph software GmbH <contact@prooph.de>
+ * (c) 2015-2016 Sascha-Oliver Prolic <saschaprolic@googlemail.com>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+
+declare(strict_types=1);
+
 namespace Prooph\EventStore\Adapter\Doctrine;
 
 use DateTimeInterface;
@@ -20,8 +24,8 @@ use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
 use Prooph\EventStore\Adapter\PayloadSerializer;
+use Prooph\EventStore\Adapter\Exception\RuntimeException;
 use Prooph\EventStore\Exception\ConcurrencyException;
-use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 
@@ -60,34 +64,32 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     private $payloadSerializer;
 
     /**
-     * @param Connection $dbalConnection
-     * @param MessageFactory $messageFactory
-     * @param MessageConverter $messageConverter
-     * @param PayloadSerializer $payloadSerializer
-     * @param array $streamTableMap
+     * @var int
      */
+    private $loadBatchSize;
+
     public function __construct(
         Connection $dbalConnection,
         MessageFactory $messageFactory,
         MessageConverter $messageConverter,
         PayloadSerializer $payloadSerializer,
-        array $streamTableMap = [])
-    {
+        array $streamTableMap = [],
+        int $loadBatchSize = 10000
+    ) {
         $this->connection = $dbalConnection;
         $this->messageFactory = $messageFactory;
         $this->messageConverter = $messageConverter;
         $this->payloadSerializer = $payloadSerializer;
         $this->streamTableMap = $streamTableMap;
+        $this->loadBatchSize = $loadBatchSize;
     }
 
     /**
-     * @param Stream $stream
-     * @throws \Prooph\EventStore\Exception\RuntimeException If creation of stream fails
-     * @return void
+     * @throws RuntimeException If creation of stream fails
      */
-    public function create(Stream $stream)
+    public function create(Stream $stream): void
     {
-        if (!$stream->streamEvents()->valid()) {
+        if (! $stream->streamEvents()->valid()) {
             throw new RuntimeException(
                 sprintf(
                     "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
@@ -105,12 +107,9 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
     }
 
     /**
-     * @param StreamName $streamName
-     * @param Iterator $streamEvents
-     * @throws \Prooph\EventStore\Exception\StreamNotFoundException If stream does not exist
-     * @return void
+     * @throws ConcurrencyException
      */
-    public function appendTo(StreamName $streamName, Iterator $streamEvents)
+    public function appendTo(StreamName $streamName, Iterator $streamEvents): void
     {
         try {
             foreach ($streamEvents as $event) {
@@ -121,25 +120,14 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         }
     }
 
-    /**
-     * @param StreamName $streamName
-     * @param null|int $minVersion
-     * @return Stream|null
-     */
-    public function load(StreamName $streamName, $minVersion = null)
+    public function load(StreamName $streamName, int $minVersion = null): ?Stream
     {
         $events = $this->loadEvents($streamName, [], $minVersion);
 
         return new Stream($streamName, $events);
     }
 
-    /**
-     * @param StreamName $streamName
-     * @param array $metadata
-     * @param null|int $minVersion
-     * @return Iterator
-     */
-    public function loadEvents(StreamName $streamName, array $metadata = [], $minVersion = null)
+    public function loadEvents(StreamName $streamName, array $metadata = [], int $minVersion = null): Iterator
     {
         $queryBuilder = $this->connection->createQueryBuilder();
 
@@ -161,16 +149,16 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('version', $minVersion);
         }
 
-        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+        return new DoctrineStreamIterator(
+            $queryBuilder,
+            $this->messageFactory,
+            $this->payloadSerializer,
+            $metadata,
+            $this->loadBatchSize
+        );
     }
 
-    /**
-     * @param StreamName $streamName
-     * @param DateTimeInterface|null $since
-     * @param array $metadata
-     * @return DoctrineStreamIterator
-     */
-    public function replay(StreamName $streamName, DateTimeInterface $since = null, array $metadata = [])
+    public function replay(StreamName $streamName, DateTimeInterface $since = null, array $metadata = []): Iterator
     {
         $queryBuilder = $this->connection->createQueryBuilder();
 
@@ -192,38 +180,34 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
                 ->setParameter('createdAt', $since->format('Y-m-d\TH:i:s.u'));
         }
 
-        return new DoctrineStreamIterator($queryBuilder, $this->messageFactory, $this->payloadSerializer, $metadata);
+        return new DoctrineStreamIterator(
+            $queryBuilder,
+            $this->messageFactory,
+            $this->payloadSerializer,
+            $metadata,
+            $this->loadBatchSize
+        );
     }
 
-    /**
-     * @param StreamName $streamName
-     * @param array $metadata
-     * @param bool $returnSql
-     * @return array|void If $returnSql is set to true then method returns array of SQL strings
-     */
-    public function createSchemaFor(StreamName $streamName, array $metadata, $returnSql = false)
+    public function createSchemaFor(StreamName $streamName, array $metadata): void
     {
-        $schema = new Schema();
-
-        static::addToSchema($schema, $this->getTable($streamName), $metadata);
-
-        $sqls = $schema->toSql($this->connection->getDatabasePlatform());
-
-        if ($returnSql) {
-            return $sqls;
-        }
+        $sqls = $this->getSqlSchemaFor($streamName, $metadata);
 
         foreach ($sqls as $sql) {
             $this->connection->executeQuery($sql);
         }
     }
 
-    /**
-     * @param Schema $schema
-     * @param string $table
-     * @param array $metadata
-     */
-    public static function addToSchema(Schema $schema, $table, array $metadata)
+    public function getSqlSchemaFor(StreamName $streamName, array $metadata): array
+    {
+        $schema = new Schema();
+
+        static::addToSchema($schema, $this->getTable($streamName), $metadata);
+
+        return $schema->toSql($this->connection->getDatabasePlatform());
+    }
+
+    public static function addToSchema(Schema $schema, string $table, array $metadata): void
     {
         $table = $schema->createTable($table);
 
@@ -245,41 +229,26 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         $table->setPrimaryKey(['event_id']);
     }
 
-    /**
-     * Begin transaction
-     */
-    public function beginTransaction()
+    public function beginTransaction(): void
     {
         if (0 != $this->connection->getTransactionNestingLevel()) {
-            throw new \RuntimeException('Transaction already started');
+            throw new RuntimeException('Transaction already started');
         }
 
         $this->connection->beginTransaction();
     }
 
-    /**
-     * Commit transaction
-     */
-    public function commit()
+    public function commit(): void
     {
         $this->connection->commit();
     }
 
-    /**
-     * Rollback transaction
-     */
-    public function rollback()
+    public function rollback(): void
     {
         $this->connection->rollBack();
     }
 
-    /**
-     * Get table name for given stream name
-     *
-     * @param StreamName $streamName
-     * @return string
-     */
-    public function getTable(StreamName $streamName)
+    public function getTable(StreamName $streamName): string
     {
         if (isset($this->streamTableMap[$streamName->toString()])) {
             $tableName = $this->streamTableMap[$streamName->toString()];
@@ -294,22 +263,12 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         return $tableName;
     }
 
-    /**
-     * @return Connection
-     */
-    public function getConnection()
+    public function getConnection(): Connection
     {
         return $this->connection;
     }
 
-    /**
-     * Insert an event
-     *
-     * @param StreamName $streamName
-     * @param Message $e
-     * @return void
-     */
-    private function insertEvent(StreamName $streamName, Message $e)
+    private function insertEvent(StreamName $streamName, Message $e): void
     {
         $eventArr = $this->messageConverter->convertToArray($e);
 
@@ -330,11 +289,7 @@ final class DoctrineEventStoreAdapter implements Adapter, CanHandleTransaction
         $this->connection->insert($this->getTable($streamName), $eventData);
     }
 
-    /**
-     * @param StreamName $streamName
-     * @return string
-     */
-    private function getShortStreamName(StreamName $streamName)
+    private function getShortStreamName(StreamName $streamName): string
     {
         $streamName = str_replace('-', '_', $streamName->toString());
         return implode('', array_slice(explode('\\', $streamName), -1));

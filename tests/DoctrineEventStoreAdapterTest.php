@@ -1,4 +1,14 @@
 <?php
+/**
+ * This file is part of the prooph/event-store-doctrine-adapter.
+ * (c) 2014-2016 prooph software GmbH <contact@prooph.de>
+ * (c) 2015-2016 Sascha-Oliver Prolic <saschaprolic@googlemail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+declare(strict_types=1);
 
 namespace ProophTest\EventStore\Adapter\Doctrine;
 
@@ -7,7 +17,9 @@ use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\Doctrine\DoctrineEventStoreAdapter;
+use Prooph\EventStore\Adapter\Exception\RuntimeException;
 use Prooph\EventStore\Adapter\PayloadSerializer\JsonPayloadSerializer;
+use Prooph\EventStore\Exception\ConcurrencyException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 use ProophTest\EventStore\Mock\UserCreated;
@@ -24,7 +36,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
      */
     protected $adapter;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         $connection = [
             'driver' => 'pdo_sqlite',
@@ -42,7 +54,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_creates_a_stream()
+    public function it_creates_a_stream(): void
     {
         $testStream = $this->getTestStream();
 
@@ -75,7 +87,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_appends_events_to_a_stream()
+    public function it_appends_events_to_a_stream(): void
     {
         $this->adapter->create($this->getTestStream());
 
@@ -111,7 +123,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_loads_events_from_min_version_on()
+    public function it_loads_events_from_min_version_on(): void
     {
         $this->adapter->create($this->getTestStream());
 
@@ -149,7 +161,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_replays()
+    public function it_replays(): void
     {
         $testStream = $this->getTestStream();
 
@@ -201,7 +213,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_replays_from_specific_date()
+    public function it_replays_from_specific_date(): void
     {
         $testStream = $this->getTestStream();
 
@@ -247,7 +259,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_replays_events_of_two_aggregates_in_a_single_stream_in_correct_order()
+    public function it_replays_events_of_two_aggregates_in_a_single_stream_in_correct_order(): void
     {
         $testStream = $this->getTestStream();
 
@@ -296,31 +308,33 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage Transaction already started
      */
-    public function it_throws_exception_when_second_transaction_started()
+    public function it_throws_exception_when_second_transaction_started(): void
     {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Transaction already started');
+
         $this->adapter->beginTransaction();
         $this->adapter->beginTransaction();
     }
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Exception\RuntimeException
-     * @expectedExceptionMessage Cannot create empty stream Prooph\Model\User.
      */
-    public function it_throws_exception_when_empty_stream_created()
+    public function it_throws_exception_when_empty_stream_created(): void
     {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Cannot create empty stream Prooph\Model\User.');
+
         $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), new \ArrayIterator([])));
     }
 
     /**
      * @test
      */
-    public function it_can_return_sql_string_for_schema_creation()
+    public function it_can_return_sql_string_for_schema_creation(): void
     {
-        $sqls = $this->adapter->createSchemaFor(new StreamName('Prooph\Model\User'), [], true);
+        $sqls = $this->adapter->getSqlSchemaFor(new StreamName('Prooph\Model\User'), []);
 
         $this->assertInternalType('array', $sqls);
         $this->assertArrayHasKey(0, $sqls);
@@ -330,7 +344,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_injected_correct_db_connection()
+    public function it_injected_correct_db_connection(): void
     {
         $connectionMock = $this->getMockForAbstractClass('Doctrine\DBAL\Connection', [], '', false);
 
@@ -347,7 +361,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_can_rollback_transaction()
+    public function it_can_rollback_transaction(): void
     {
         $testStream = $this->getTestStream();
 
@@ -381,7 +395,7 @@ class DoctrineEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_can_rewind_doctrine_stream_iterator()
+    public function it_can_rewind_doctrine_stream_iterator(): void
     {
         $testStream = $this->getTestStream();
 
@@ -408,10 +422,11 @@ class DoctrineEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     * @expectedException \Prooph\EventStore\Exception\ConcurrencyException
      */
-    public function it_fails_to_write_with_duplicate_aggregate_id_and_version()
+    public function it_fails_to_write_with_duplicate_aggregate_id_and_version(): void
     {
+        $this->expectException(ConcurrencyException::class);
+
         $streamEvent = UserCreated::with(
             ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
             1
@@ -434,9 +449,40 @@ class DoctrineEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function it_replays_larger_streams_in_chunks(): void
+    {
+        $streamName = new StreamName('Prooph\Model\User');
+
+        $streamEvents = [];
+
+        for ($i = 1; $i <= 150; $i++) {
+            $streamEvents[] = UserCreated::with(
+                ['name' => 'Max Mustermann ' . $i, 'email' => 'contact_' . $i . '@prooph.de'],
+                $i
+            );
+        }
+
+        $this->adapter->create(new Stream($streamName, new \ArrayIterator($streamEvents)));
+
+        $replay = $this->adapter->replay($streamName);
+
+        $count = 0;
+        foreach ($replay as $event) {
+            $count++;
+            $this->assertEquals('Max Mustermann ' . $count, $event->payload()['name']);
+            $this->assertEquals('contact_' . $count . '@prooph.de', $event->payload()['email']);
+            $this->assertEquals($count, $event->version());
+        }
+
+        $this->assertEquals(150, $count);
+    }
+
+    /**
      * @return Stream
      */
-    private function getTestStream()
+    private function getTestStream(): Stream
     {
         $streamEvent = UserCreated::with(
             ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],

@@ -1,13 +1,14 @@
 <?php
-/*
- * This file is part of the prooph/event-store-mongodb-adapter.
- * (c) 2014 - 2015 prooph software GmbH <contact@prooph.de>
+/**
+ * This file is part of the prooph/event-store-doctrine-adapter.
+ * (c) 2014-2016 prooph software GmbH <contact@prooph.de>
+ * (c) 2015-2016 Sascha-Oliver Prolic <saschaprolic@googlemail.com>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
- *
- * Date: 09/25/15 - 15:29
  */
+
+declare(strict_types=1);
 
 namespace Prooph\EventStore\Adapter\Doctrine;
 
@@ -65,32 +66,32 @@ final class DoctrineStreamIterator implements Iterator
     private $currentKey;
 
     /**
-     * @param QueryBuilder $queryBuilder
-     * @param MessageFactory $messageFactory
-     * @param PayloadSerializer $payloadSerializer
-     * @param array $metadata
+     * @var int
      */
+    private $batchPosition = 0;
+
+    private $batchSize;
+
     public function __construct(
         QueryBuilder $queryBuilder,
         MessageFactory $messageFactory,
         PayloadSerializer $payloadSerializer,
-        array $metadata
+        array $metadata,
+        int $batchSize = 10000
     ) {
         $this->queryBuilder = $queryBuilder;
         $this->messageFactory = $messageFactory;
         $this->payloadSerializer = $payloadSerializer;
         $this->metadata = $metadata;
+        $this->batchSize = $batchSize;
 
         $this->rewind();
     }
 
-    /**
-     * @return null|Message
-     */
-    public function current()
+    public function current(): ?Message
     {
         if (false === $this->currentItem) {
-            return;
+            return null;
         }
 
         $payload = $this->payloadSerializer->unserializePayload($this->currentItem['payload']);
@@ -119,17 +120,25 @@ final class DoctrineStreamIterator implements Iterator
         ]);
     }
 
-    /**
-     * Next
-     */
-    public function next()
+    public function next(): void
     {
         $this->currentItem = $this->statement->fetch();
 
         if (false !== $this->currentItem) {
             $this->currentKey++;
         } else {
-            $this->currentKey = -1;
+            $this->batchPosition++;
+            $this->queryBuilder->setFirstResult($this->batchSize * $this->batchPosition);
+            $this->queryBuilder->setMaxResults($this->batchSize);
+            /* @var $stmt \Doctrine\DBAL\Statement */
+            $this->statement = $this->queryBuilder->execute();
+            $this->statement->setFetchMode(\PDO::FETCH_ASSOC);
+
+            $this->currentItem = $this->statement->fetch();
+
+            if (false === $this->currentItem) {
+                $this->currentKey = -1;
+            }
         }
     }
 
@@ -145,21 +154,19 @@ final class DoctrineStreamIterator implements Iterator
         return $this->currentKey;
     }
 
-    /**
-     * @return bool
-     */
-    public function valid()
+    public function valid(): bool
     {
         return false !== $this->currentItem;
     }
 
-    /**
-     * Rewind
-     */
-    public function rewind()
+    public function rewind(): void
     {
         //Only perform rewind if current item is not the first element
         if ($this->currentKey !== 0) {
+            $this->batchPosition = 0;
+            $this->queryBuilder->setFirstResult(0);
+            $this->queryBuilder->setMaxResults($this->batchSize);
+
             /* @var $stmt \Doctrine\DBAL\Statement */
             $stmt = $this->queryBuilder->execute();
             $stmt->setFetchMode(\PDO::FETCH_ASSOC);
