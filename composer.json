@@ -5,11 +5,6 @@
     "license": "BSD-3-Clause",
     "authors": [
         {
-            "name": "Jan Sorgalla",
-            "email": "jan.sorgalla@dotsunited.de",
-            "homepage": "http://dotsunited.de"
-        },
-        {
             "name": "Alexander Miertsch",
             "email": "contact@prooph.de",
             "homepage": "http://www.prooph.de/"
@@ -17,6 +12,10 @@
         {
             "name": "Sascha-Oliver Prolic",
             "email": "saschaprolic@googlemail.com"
+        },
+        {
+            "name": "Bas Kamer",
+            "email": "bas@bushbaby.nl"
         }
     ],
     "require": {
