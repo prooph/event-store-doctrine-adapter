@@ -19,6 +19,12 @@ long class names you should increase this length, otherwise it could lead to err
 should be equal with the `aggregate_type` length in the 
 [snapshot table](https://github.com/prooph/snapshot-doctrine-adapter "Doctrine Adapter for the Snapshot Store").
 
+Limitations
+-----------
+
+When using MySQL while enabling `oneStreamPerAggregate` option, the transaction handling is broken!
+For more information see: https://github.com/prooph/pdo-event-store/issues/6
+
 Requirements
 ------------
 - PHP >= 5.5
