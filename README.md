@@ -5,6 +5,8 @@ Doctrine Adapter for ProophEventStore
 [![Coverage Status](https://coveralls.io/repos/prooph/event-store-doctrine-adapter/badge.png)](https://coveralls.io/r/prooph/event-store-doctrine-adapter)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/prooph/improoph)
 
+#CAUTION: The Doctrine adapter is not compatible With prooph/event-store v7. Use the new [PDO Event Store](https://github.com/prooph/pdo-event-store) instead! Support for the adapter will end at 31 December 2017. 
+
 Use [Prooph Event Store](https://github.com/prooph/event-store) with [Doctrine DBAL](https://github.com/doctrine/dbal).
 
 Database Set Up
